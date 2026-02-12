@@ -1,5 +1,6 @@
 """Ingestion API routes."""
 
+import asyncio
 import logging
 
 from fastapi import APIRouter, HTTPException, Request
@@ -30,7 +31,8 @@ async def ingest_url(body: IngestURLRequest, request: Request):
         raise HTTPException(status_code=422, detail=f"Failed to fetch URL: {e}")
 
     try:
-        article = process_article(
+        article = await asyncio.to_thread(
+            process_article,
             title=extracted["title"],
             author=extracted["author"],
             content_md=extracted["content_md"],
