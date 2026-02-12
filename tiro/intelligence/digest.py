@@ -168,15 +168,22 @@ def _cache_digest(
 def get_cached_digest(config: TiroConfig, today: str, digest_type: str | None = None) -> dict | None:
     """Retrieve cached digest from SQLite.
 
+    Looks for today's digest first, then falls back to the most recent cached
+    digest (so a digest generated last night isn't lost at midnight).
+
     Returns dict mapping digest_type -> content, or None if not cached.
     If digest_type is specified, returns only that type.
     """
     conn = get_connection(config.db_path)
     try:
         if digest_type:
+            # Try today first, then most recent
             row = conn.execute(
-                "SELECT content, article_ids, created_at FROM digests WHERE date = ? AND digest_type = ?",
-                (today, digest_type),
+                """SELECT content, article_ids, created_at FROM digests
+                   WHERE digest_type = ?
+                   ORDER BY CASE WHEN date = ? THEN 0 ELSE 1 END, date DESC
+                   LIMIT 1""",
+                (digest_type, today),
             ).fetchone()
             if row:
                 return {
@@ -188,10 +195,17 @@ def get_cached_digest(config: TiroConfig, today: str, digest_type: str | None = 
                 }
             return None
         else:
+            # Try today first
             rows = conn.execute(
                 "SELECT digest_type, content, article_ids, created_at FROM digests WHERE date = ?",
                 (today,),
             ).fetchall()
+            # Fall back to most recent date
+            if not rows:
+                rows = conn.execute(
+                    """SELECT digest_type, content, article_ids, created_at FROM digests
+                       WHERE date = (SELECT MAX(date) FROM digests)""",
+                ).fetchall()
             if not rows:
                 return None
             return {
