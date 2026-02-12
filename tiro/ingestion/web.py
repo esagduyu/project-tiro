@@ -16,6 +16,92 @@ logger = logging.getLogger(__name__)
 _LAYOUT_TAGS = {"table", "tbody", "thead", "tfoot", "tr", "td", "th"}
 
 
+def _collect_content_images(html: str) -> list[dict]:
+    """Extract content images from the original HTML before readability strips them.
+
+    Returns a list of {src, alt} dicts for images that appear to be article content
+    (inside <figure> elements or with substantial dimensions), not UI chrome.
+    """
+    try:
+        tree = fromstring(html)
+    except etree.ParserError:
+        return []
+
+    images = []
+
+    # Collect images from <figure> elements (these are almost always content)
+    for figure in tree.iter("figure"):
+        img = figure.find(".//img")
+        if img is None:
+            continue
+        src = img.get("src", "")
+        if not src:
+            continue
+        alt = img.get("alt", "")
+        caption_el = figure.find(".//figcaption")
+        caption = caption_el.text_content().strip() if caption_el is not None else ""
+        images.append({"src": src, "alt": alt, "caption": caption})
+
+    return images
+
+
+def _reinject_images(content_html: str, images: list[dict]) -> str:
+    """Re-inject content images that readability stripped.
+
+    For each image, find the nearest text anchor in the content and insert the
+    image there.  If no good anchor is found, append images at the end.
+    """
+    if not images:
+        return content_html
+
+    try:
+        tree = fromstring(content_html)
+    except etree.ParserError:
+        return content_html
+
+    # Check which images are already present (by src)
+    existing_srcs = {img.get("src", "") for img in tree.iter("img")}
+    missing = [img for img in images if img["src"] not in existing_srcs]
+
+    if not missing:
+        return content_html
+
+    # Find the main content container
+    body = tree.find(".//body")
+    container = body if body is not None else tree
+
+    # Find all block-level text elements to use as anchors
+    blocks = list(container.iter("p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "li"))
+
+    for img_data in missing:
+        img_el = etree.Element("img")
+        img_el.set("src", img_data["src"])
+        if img_data["alt"]:
+            img_el.set("alt", img_data["alt"])
+
+        wrapper = etree.Element("p")
+        wrapper.append(img_el)
+        if img_data.get("caption"):
+            etree.SubElement(wrapper, "br")
+            em = etree.SubElement(wrapper, "em")
+            em.text = img_data["caption"]
+
+        if blocks:
+            # Insert after the next available block element
+            anchor = blocks.pop(0) if blocks else None
+            if anchor is not None:
+                parent = anchor.getparent()
+                if parent is not None:
+                    idx = list(parent).index(anchor) + 1
+                    parent.insert(idx, wrapper)
+                    continue
+
+        # Fallback: append at end
+        container.append(wrapper)
+
+    return tostring(tree, encoding="unicode")
+
+
 def _strip_layout_tables(html: str) -> str:
     """Unwrap layout tables, keeping their inner content intact."""
     try:
@@ -48,6 +134,24 @@ def _strip_layout_tables(html: str) -> str:
     return tostring(tree, encoding="unicode")
 
 
+def _extract_author(html: str) -> str | None:
+    """Extract author name from HTML meta tags or JSON-LD."""
+    # Try <meta name="author" content="...">
+    m = re.search(r'<meta[^>]*name=["\']author["\'][^>]*content=["\']([^"\']+)["\']', html, re.I)
+    if not m:
+        # Try reversed attribute order: content before name
+        m = re.search(r'<meta[^>]*content=["\']([^"\']+)["\'][^>]*name=["\']author["\']', html, re.I)
+    if m:
+        return m.group(1).strip()
+
+    # Try <meta property="article:author" content="...">
+    m = re.search(r'<meta[^>]*property=["\']article:author["\'][^>]*content=["\']([^"\']+)["\']', html, re.I)
+    if m:
+        return m.group(1).strip()
+
+    return None
+
+
 async def fetch_and_extract(url: str) -> dict:
     """Fetch a web page and extract its main content as clean markdown.
 
@@ -62,9 +166,21 @@ async def fetch_and_extract(url: str) -> dict:
         response.raise_for_status()
         html = response.text
 
+    # Use the final URL after redirects (e.g. substack.com/home/post/... -> author.substack.com/p/...)
+    final_url = str(response.url)
+
+    # Collect content images before readability strips them
+    content_images = _collect_content_images(html)
+
     doc = Document(html)
     title = doc.title()
     content_html = doc.summary()
+
+    # Re-inject any content images that readability removed
+    content_html = _reinject_images(content_html, content_images)
+
+    # Extract author from meta tags
+    author = _extract_author(html)
 
     # Strip layout tables (common on old-school sites) before markdown conversion
     content_html = _strip_layout_tables(content_html)
@@ -82,7 +198,7 @@ async def fetch_and_extract(url: str) -> dict:
 
     return {
         "title": title,
-        "author": None,  # readability doesn't extract author; Haiku will in Checkpoint 0.3
+        "author": author,
         "content_md": content_md,
-        "url": url,
+        "url": final_url,
     }
