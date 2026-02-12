@@ -564,6 +564,35 @@ main {
     cursor: not-allowed;
 }
 
+/* --- Digest banner --- */
+
+.digest-banner {
+    font-size: 0.8rem;
+    color: var(--muted);
+    padding: 0.5rem 0.75rem;
+    background: var(--tag-bg);
+    border-radius: 4px;
+    margin-bottom: 1.25rem;
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.digest-refresh-inline {
+    border: none;
+    background: none;
+    color: var(--accent);
+    cursor: pointer;
+    font-size: 0.8rem;
+    padding: 0;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.digest-refresh-inline:hover {
+    color: var(--accent-hover);
+}
+
 /* --- Digest loading --- */
 
 .digest-loading {

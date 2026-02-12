@@ -90,6 +90,9 @@ async function loadDigest(refresh) {
         renderDigestSection("by_topic", digestData.by_topic);
         renderDigestSection("by_entity", digestData.by_entity);
 
+        // Show time-ago banner
+        updateDigestBanner(digestData);
+
         loadingEl.style.display = "none";
         contentEl.style.display = "block";
 
@@ -137,6 +140,37 @@ function renderDigestSection(type, data) {
             link.rel = "noopener noreferrer";
         }
     });
+}
+
+function updateDigestBanner(data) {
+    const banner = document.getElementById("digest-banner");
+    if (!banner) return;
+
+    // Get created_at from any section (they're all generated together)
+    const section = data.ranked || data.by_topic || data.by_entity;
+    if (!section || !section.created_at) {
+        banner.style.display = "none";
+        return;
+    }
+
+    const ago = timeAgo(section.created_at);
+    banner.innerHTML = `Generated ${ago} <button class="digest-refresh-inline" onclick="loadDigest(true)">Regenerate</button>`;
+    banner.style.display = "block";
+}
+
+function timeAgo(timestamp) {
+    const now = new Date();
+    const then = new Date(timestamp.replace(" ", "T")); // SQLite uses space not T
+    const diffMs = now - then;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHr = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHr / 24);
+
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffHr < 24) return `${diffHr}h ago`;
+    if (diffDay === 1) return "yesterday";
+    return `${diffDay} days ago`;
 }
 
 /* ---- Inbox (articles list) ---- */
