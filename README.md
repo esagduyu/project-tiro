@@ -18,7 +18,7 @@ Named after Cicero's freedman who preserved and organized his master's works for
 ## Quick Start
 
 ```bash
-git clone https://github.com/yourusername/project-tiro.git
+git clone https://github.com/esagduyu/project-tiro.git
 cd project-tiro
 uv pip install -e .
 tiro init        # creates library directory, initializes databases
