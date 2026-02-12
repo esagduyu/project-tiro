@@ -153,15 +153,20 @@ function updateDigestBanner(data) {
         return;
     }
 
-    const ago = timeAgo(section.created_at);
-    banner.innerHTML = `Generated ${ago} <button class="digest-refresh-inline" onclick="loadDigest(true)">Regenerate</button>`;
-    banner.style.display = "block";
+    const then = new Date(section.created_at.replace(" ", "T"));
+    const diffHr = (new Date() - then) / 3600000;
+    const stale = diffHr >= 24;
+    const ago = timeAgo(then);
+
+    banner.className = stale ? "digest-banner digest-banner-stale" : "digest-banner";
+    banner.innerHTML = stale
+        ? `Digest is ${ago} old — new articles may not be included. <button class="digest-refresh-inline" onclick="loadDigest(true)">Regenerate now</button>`
+        : `Generated ${ago} <button class="digest-refresh-inline" onclick="loadDigest(true)">Regenerate</button>`;
+    banner.style.display = "flex";
 }
 
-function timeAgo(timestamp) {
-    const now = new Date();
-    const then = new Date(timestamp.replace(" ", "T")); // SQLite uses space not T
-    const diffMs = now - then;
+function timeAgo(then) {
+    const diffMs = new Date() - then;
     const diffMin = Math.floor(diffMs / 60000);
     const diffHr = Math.floor(diffMin / 60);
     const diffDay = Math.floor(diffHr / 24);

@@ -578,6 +578,11 @@ main {
     gap: 0.75rem;
 }
 
+.digest-banner-stale {
+    background: #fef3c7;
+    color: #92400e;
+}
+
 .digest-refresh-inline {
     border: none;
     background: none;
