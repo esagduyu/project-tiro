@@ -55,16 +55,16 @@ Storage Layer (all local)
 
 ## Current Status
 
-**Working on:** Checkpoint 3 — Inbox shows articles
-**Next up:** Checkpoint 4 — Reader works
-**Completed:** Checkpoints 1–2 (skeleton runs, can save a URL)
+**Working on:** Checkpoint 4 — Reader works
+**Next up:** Checkpoint 5 — Digest generates
+**Completed:** Checkpoints 1–3 (skeleton runs, can save a URL, inbox shows articles)
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
 Checkpoint tracker:
 [x] 1. Skeleton runs
 [x] 2. Can save a URL
-[ ] 3. Inbox shows articles
+[x] 3. Inbox shows articles
 [ ] 4. Reader works
 [ ] 5. Digest generates
 [ ] 6. Analysis works
