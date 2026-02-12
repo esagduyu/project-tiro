@@ -41,6 +41,7 @@ Storage Layer (all local)
 
 ## Key Conventions
 
+- - **Use `uv` for all Python version and dependency management** — never use pip directly. Use `uv pip install`, `uv venv`, `uv run`, etc. Dependencies defined in pyproject.toml.
 - Python 3.11+, async throughout (async def for all route handlers)
 - Use httpx for async HTTP calls
 - Use python-frontmatter for reading/writing markdown with YAML frontmatter

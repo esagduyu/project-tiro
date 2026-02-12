@@ -445,12 +445,12 @@ This is the Opus 4.6 showcase. The demo lives or dies here.
 
 #### 3.5 Packaging & Installation
 - Package Tiro for easy installation by non-developer users:
-  - `pip install tiro-reader` (PyPI package) or at minimum a clean `pip install -e .` with `pyproject.toml`
+  - `uv pip install tiro-reader` (PyPI package) or at minimum a clean `uv pip install -e .` with `pyproject.toml`
   - Single setup command: `tiro init` creates the library directory, initializes databases, prompts for API key
   - `tiro run` starts the server and opens the browser
   - `tiro import-emails ./path/to/emails/` for bulk import
 - Include a clear README with:
-  - Prerequisites (Python 3.11+, API key)
+  - Prerequisites (Python 3.11+, uv, API key)
   - One-liner install + run
   - Screenshots of the UI
   - Architecture overview for contributors
@@ -588,7 +588,6 @@ Semantic search across the library. Then switch to Claude Code with MCP connecte
 tiro/
 ├── run.py                    # Entry point: starts FastAPI server
 ├── config.yaml               # User configuration
-├── requirements.txt
 ├── README.md
 ├── LICENSE                   # Open source license (MIT or Apache 2.0)
 │
@@ -820,7 +819,7 @@ When building with Claude Code, follow this order. Each checkpoint should result
 
 15. **Checkpoint: Chrome extension** — Extension installed, clicking "Save to Tiro" on any page sends it to the local server and it appears in the inbox.
 
-16. **Checkpoint: Packaging** — `pip install -e .` works, `tiro init` and `tiro run` CLI commands work, README has clear setup instructions.
+16. **Checkpoint: Packaging** — `uv pip install -e .` works, `tiro init` and `tiro run` CLI commands work, README has clear setup instructions.
 
 17. **Checkpoint: Digest email** — Scheduled digest sent to configured email. Visible in mailhog/mailtrap for demo.
 
@@ -828,12 +827,13 @@ When building with Claude Code, follow this order. Each checkpoint should result
 
 ## Notes for Claude Code
 
+- **Use `uv` for all Python version and dependency management** — never use pip directly. Use `uv pip install`, `uv venv`, `uv run`, etc.
 - **Python 3.11+** — use modern Python features (type hints, match statements, f-strings)
 - **Async throughout** — FastAPI is async, so use `async def` for route handlers and `httpx` for HTTP calls
 - **Error handling** — graceful failures on network issues, malformed HTML, API rate limits. Never crash the server.
 - **Logging** — use Python `logging` module, INFO level by default, DEBUG available via config
 - **Tests** — if time permits, add basic pytest tests for the ingestion pipeline and API endpoints
-- **README** — clear setup instructions: clone, install requirements, add API key to config, run. Should take under 2 minutes.
+- **README** — clear setup instructions: clone, `uv pip install -e .`, add API key to config, `tiro run`. Should take under 2 minutes.
 - **License** — MIT (simple, permissive, hackathon-friendly)
 - **Demo data** — include the `seed_demo.py` script that populates the library with sample articles for judging
 
