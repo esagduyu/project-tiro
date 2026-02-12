@@ -55,9 +55,9 @@ Storage Layer (all local)
 
 ## Current Status
 
-**Working on:** Checkpoint 5 — Digest generates
-**Next up:** Checkpoint 6 — Analysis works
-**Completed:** Checkpoints 1–4 (skeleton runs, can save a URL, inbox shows articles, reader works)
+**Working on:** Checkpoint 6 — Analysis works
+**Next up:** Checkpoint 7 — Search + Related
+**Completed:** Checkpoints 1–5 (skeleton runs, can save a URL, inbox shows articles, reader works, digest generates)
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -66,7 +66,7 @@ Checkpoint tracker:
 [x] 2. Can save a URL
 [x] 3. Inbox shows articles
 [x] 4. Reader works
-[ ] 5. Digest generates
+[x] 5. Digest generates
 [ ] 6. Analysis works
 [ ] 7. Search + Related
 [ ] 8. Email import works
@@ -94,3 +94,6 @@ Checkpoint tracker:
 - **Author extraction**: readability-lxml doesn't extract authors. Added `<meta name="author">` and `<meta property="article:author">` parsing from raw HTML. Works for Substack, Medium, WordPress.
 - **URL redirects**: Use final URL after redirects (via `response.url`) so Substack generic links (`substack.com/home/post/...`) resolve to the actual subdomain (`author.substack.com/p/...`), giving correct source names.
 - **Reader view**: Uses marked.js (CDN) for client-side markdown rendering. Article content loaded via `GET /api/articles/{id}` which reads the markdown file via python-frontmatter.
+- **Digest generation**: Opus 4.6 generates three digest variants (ranked, by_topic, by_entity) from article summaries + metadata. Prompt templates in `tiro/intelligence/prompts.py`. Cached in SQLite `digests` table by date+type. Opus call wrapped in `asyncio.to_thread()` to avoid blocking the event loop.
+- **process_article() uses keyword-only args**: Call as `process_article(**extracted, config=config)`, not positional args.
+- **Browser cache busting**: Static files (CSS/JS) use `?v=N` query params in base.html to force browser reload after changes. Increment the version when modifying static files.

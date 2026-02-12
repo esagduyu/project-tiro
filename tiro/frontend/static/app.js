@@ -1,8 +1,145 @@
-/* Tiro — Inbox frontend */
+/* Tiro — Inbox + Digest frontend */
+
+let digestData = null; // cached digest response
+let digestLoaded = false;
 
 document.addEventListener("DOMContentLoaded", () => {
     loadInbox();
+    setupViewTabs();
+    setupDigestTabs();
 });
+
+/* ---- View tabs (All Articles / Daily Digest) ---- */
+
+function setupViewTabs() {
+    document.querySelectorAll(".view-tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+            document.querySelectorAll(".view-tab").forEach((t) => t.classList.remove("active"));
+            tab.classList.add("active");
+
+            const view = tab.dataset.view;
+            document.getElementById("view-articles").style.display =
+                view === "articles" ? "block" : "none";
+            document.getElementById("view-digest").style.display =
+                view === "digest" ? "block" : "none";
+
+            if (view === "digest" && !digestLoaded) {
+                loadDigest(false);
+            }
+        });
+    });
+}
+
+/* ---- Digest sub-tabs (Ranked / By Topic / By Entity) ---- */
+
+function setupDigestTabs() {
+    document.querySelectorAll(".digest-tab").forEach((tab) => {
+        tab.addEventListener("click", () => {
+            document.querySelectorAll(".digest-tab").forEach((t) => t.classList.remove("active"));
+            tab.classList.add("active");
+
+            const type = tab.dataset.type;
+            document.querySelectorAll(".digest-section").forEach((s) => (s.style.display = "none"));
+            const section = document.getElementById(`digest-${type.replace("_", "-")}`);
+            if (section) section.style.display = "block";
+        });
+    });
+
+    // Refresh button
+    const refreshBtn = document.getElementById("digest-refresh");
+    if (refreshBtn) {
+        refreshBtn.addEventListener("click", () => loadDigest(true));
+    }
+}
+
+/* ---- Load digest ---- */
+
+async function loadDigest(refresh) {
+    const loadingEl = document.getElementById("digest-loading");
+    const errorEl = document.getElementById("digest-error");
+    const contentEl = document.getElementById("digest-content");
+    const emptyEl = document.getElementById("digest-empty");
+    const refreshBtn = document.getElementById("digest-refresh");
+
+    loadingEl.style.display = "block";
+    errorEl.style.display = "none";
+    contentEl.style.display = "none";
+    emptyEl.style.display = "none";
+    if (refreshBtn) refreshBtn.disabled = true;
+
+    try {
+        const url = refresh ? "/api/digest/today?refresh=true" : "/api/digest/today";
+        const res = await fetch(url);
+
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const json = await res.json();
+
+        if (!json.success || !json.data) {
+            throw new Error("Invalid response");
+        }
+
+        digestData = json.data;
+        digestLoaded = true;
+
+        // Render each section
+        renderDigestSection("ranked", digestData.ranked);
+        renderDigestSection("by_topic", digestData.by_topic);
+        renderDigestSection("by_entity", digestData.by_entity);
+
+        loadingEl.style.display = "none";
+        contentEl.style.display = "block";
+
+        // Show the active tab's section
+        const activeTab = document.querySelector(".digest-tab.active");
+        if (activeTab) {
+            const type = activeTab.dataset.type;
+            document.querySelectorAll(".digest-section").forEach((s) => (s.style.display = "none"));
+            const section = document.getElementById(`digest-${type.replace("_", "-")}`);
+            if (section) section.style.display = "block";
+        }
+    } catch (err) {
+        console.error("Digest load failed:", err);
+        loadingEl.style.display = "none";
+        document.getElementById("digest-error-msg").textContent =
+            `Failed to generate digest: ${err.message}`;
+        errorEl.style.display = "block";
+    } finally {
+        if (refreshBtn) refreshBtn.disabled = false;
+    }
+}
+
+function renderDigestSection(type, data) {
+    const elId = `digest-${type.replace("_", "-")}`;
+    const el = document.getElementById(elId);
+    if (!el || !data) return;
+
+    const content = data.content || "";
+    el.innerHTML = marked.parse(content);
+
+    // Make article links work (they're /articles/ID)
+    el.querySelectorAll("a").forEach((link) => {
+        const href = link.getAttribute("href");
+        // Internal article links — keep as-is, they already point to /articles/{id}
+        if (href && href.startsWith("/articles/")) {
+            link.addEventListener("click", (e) => {
+                e.preventDefault();
+                // Mark as read
+                const id = href.split("/articles/")[1];
+                fetch(`/api/articles/${id}/read`, { method: "PATCH" }).catch(() => {});
+                window.location.href = href;
+            });
+        } else if (href && (href.startsWith("http://") || href.startsWith("https://"))) {
+            link.target = "_blank";
+            link.rel = "noopener noreferrer";
+        }
+    });
+}
+
+/* ---- Inbox (articles list) ---- */
 
 async function loadInbox() {
     const listEl = document.getElementById("article-list");
@@ -137,7 +274,6 @@ function attachListeners() {
                 console.error("Mark-read failed:", err);
             }
 
-            // Navigate (reader view comes in Checkpoint 4)
             window.location.href = link.href;
         });
     });
