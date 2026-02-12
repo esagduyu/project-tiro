@@ -55,9 +55,9 @@ Storage Layer (all local)
 
 ## Current Status
 
-**Working on:** Checkpoint 4 — Reader works
-**Next up:** Checkpoint 5 — Digest generates
-**Completed:** Checkpoints 1–3 (skeleton runs, can save a URL, inbox shows articles)
+**Working on:** Checkpoint 5 — Digest generates
+**Next up:** Checkpoint 6 — Analysis works
+**Completed:** Checkpoints 1–4 (skeleton runs, can save a URL, inbox shows articles, reader works)
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -65,7 +65,7 @@ Checkpoint tracker:
 [x] 1. Skeleton runs
 [x] 2. Can save a URL
 [x] 3. Inbox shows articles
-[ ] 4. Reader works
+[x] 4. Reader works
 [ ] 5. Digest generates
 [ ] 6. Analysis works
 [ ] 7. Search + Related
@@ -88,3 +88,9 @@ Checkpoint tracker:
 - `uv run python run.py` to start the server
 - **Before starting the server**, always kill any existing process on port 8000: `lsof -ti :8000 | xargs kill -9`
 - **Subagents must clean up**: if a subagent starts uvicorn for testing, it must kill it before finishing
+- **direnv**: user uses direnv for `ANTHROPIC_API_KEY`. Claude Code subprocesses don't inherit direnv env vars, so Haiku extraction fails silently in subagent-started servers. User must start the server from their own terminal for API calls to work.
+- **readability-lxml strips images**: Sites using `<figure>/<picture>` wrappers (Substack, Medium, WordPress) lose all images through readability. Fixed by collecting `<figure>` images with text anchors from the original HTML, then re-injecting them at correct positions in readability's output.
+- **readability-lxml vs table-layout sites**: Old sites like paulgraham.com use `<table>` for page layout. readability preserves the tables, and markdownify converts them to markdown table syntax, destroying the article structure. Fixed by stripping layout table tags (`table/tr/td/th`) before markdown conversion.
+- **Author extraction**: readability-lxml doesn't extract authors. Added `<meta name="author">` and `<meta property="article:author">` parsing from raw HTML. Works for Substack, Medium, WordPress.
+- **URL redirects**: Use final URL after redirects (via `response.url`) so Substack generic links (`substack.com/home/post/...`) resolve to the actual subdomain (`author.substack.com/p/...`), giving correct source names.
+- **Reader view**: Uses marked.js (CDN) for client-side markdown rendering. Article content loaded via `GET /api/articles/{id}` which reads the markdown file via python-frontmatter.
