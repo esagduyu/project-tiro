@@ -30,8 +30,8 @@ async def lifespan(app: FastAPI):
     # Initialize SQLite
     init_db(config.db_path)
 
-    # Initialize ChromaDB
-    init_vectorstore(config.chroma_dir)
+    # Initialize ChromaDB with configured embedding model
+    init_vectorstore(config.chroma_dir, config.default_embedding_model)
 
     logger.info("Tiro is ready — library at %s", config.library)
     yield
@@ -59,6 +59,11 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
+
+    # API routers
+    from tiro.api.routes_ingest import router as ingest_router
+
+    app.include_router(ingest_router)
 
     # Static files and templates
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="static")

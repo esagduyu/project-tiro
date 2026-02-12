@@ -11,15 +11,22 @@ _client: chromadb.ClientAPI | None = None
 _collection: chromadb.Collection | None = None
 
 
-def init_vectorstore(chroma_dir: Path) -> chromadb.Collection:
+def init_vectorstore(
+    chroma_dir: Path, embedding_model: str = "all-MiniLM-L6-v2"
+) -> chromadb.Collection:
     """Initialize the ChromaDB persistent client and return the tiro_articles collection."""
     global _client, _collection
 
     chroma_dir.mkdir(parents=True, exist_ok=True)
 
+    from chromadb.utils.embedding_functions import SentenceTransformerEmbeddingFunction
+
+    ef = SentenceTransformerEmbeddingFunction(model_name=embedding_model)
+
     _client = chromadb.PersistentClient(path=str(chroma_dir))
     _collection = _client.get_or_create_collection(
         name="tiro_articles",
+        embedding_function=ef,
         metadata={"hnsw:space": "cosine"},
     )
     logger.info(
