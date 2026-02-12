@@ -1,7 +1,9 @@
 """Article API routes."""
 
 import logging
+from pathlib import Path
 
+import frontmatter
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
@@ -10,6 +12,52 @@ from tiro.database import get_connection
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/articles", tags=["articles"])
+
+
+@router.get("/{article_id}")
+async def get_article(article_id: int, request: Request):
+    """Get a single article with full markdown content."""
+    config = request.app.state.config
+    conn = get_connection(config.db_path)
+    try:
+        row = conn.execute("""
+            SELECT
+                a.id, a.title, a.author, a.url, a.slug, a.summary,
+                a.word_count, a.reading_time_min, a.published_at, a.ingested_at,
+                a.is_read, a.rating, a.opened_count, a.markdown_path,
+                s.name AS source_name, s.domain, s.is_vip, s.id AS source_id
+            FROM articles a
+            LEFT JOIN sources s ON a.source_id = s.id
+            WHERE a.id = ?
+        """, (article_id,)).fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="Article not found")
+
+        article = dict(row)
+
+        # Fetch tags
+        tags = conn.execute("""
+            SELECT t.name FROM tags t
+            JOIN article_tags at ON t.id = at.tag_id
+            WHERE at.article_id = ?
+        """, (article_id,)).fetchall()
+        article["tags"] = [t["name"] for t in tags]
+
+        # Read markdown content from file
+        md_path = Path(article["markdown_path"])
+        if not md_path.is_absolute():
+            md_path = config.articles_dir / md_path
+        if md_path.exists():
+            post = frontmatter.load(str(md_path))
+            article["content"] = post.content
+        else:
+            article["content"] = ""
+            logger.warning("Markdown file not found: %s", md_path)
+
+        return {"success": True, "data": article}
+    finally:
+        conn.close()
 
 
 @router.get("")

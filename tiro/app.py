@@ -77,4 +77,8 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     async def index(request: Request):
         return templates.TemplateResponse("index.html", {"request": request})
 
+    @app.get("/articles/{article_id}", response_class=HTMLResponse)
+    async def reader(request: Request, article_id: int):
+        return templates.TemplateResponse("reader.html", {"request": request, "article_id": article_id})
+
     return app

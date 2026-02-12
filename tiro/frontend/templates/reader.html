@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Tiro — Reading{% endblock %}
+
+{% block content %}
+<article id="reader" class="reader" data-article-id="{{ article_id }}">
+    <div id="reader-loading" class="reader-loading">Loading article...</div>
+    <div id="reader-error" class="reader-error" style="display: none;">
+        <p>Could not load this article.</p>
+        <a href="/">&larr; Back to inbox</a>
+    </div>
+    <div id="reader-content" style="display: none;">
+        <nav class="reader-nav">
+            <a href="/" class="back-link">&larr; Back to inbox</a>
+            <div class="reader-actions">
+                <button class="rate-btn love" data-rating="2" title="Love">&hearts;</button>
+                <button class="rate-btn like" data-rating="1" title="Like">&plus;</button>
+                <button class="rate-btn dislike" data-rating="-1" title="Dislike">&minus;</button>
+            </div>
+        </nav>
+        <header class="reader-header">
+            <h1 id="reader-title"></h1>
+            <div class="reader-meta">
+                <span id="reader-source" class="source-name"></span>
+                <span id="reader-vip" class="vip-star" style="display: none;">&#9733;</span>
+                <span class="meta-sep">&middot;</span>
+                <span id="reader-author"></span>
+                <span class="meta-sep" id="author-sep">&middot;</span>
+                <span id="reader-date"></span>
+                <span class="meta-sep">&middot;</span>
+                <span id="reader-time"></span>
+            </div>
+            <div class="reader-source-link">
+                <a id="reader-original-link" href="" target="_blank" rel="noopener noreferrer"></a>
+            </div>
+            <div id="reader-tags" class="article-tags"></div>
+        </header>
+        <div id="reader-summary" class="reader-summary"></div>
+        <div id="reader-body" class="reader-body"></div>
+    </div>
+</article>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="/static/reader.js"></script>
+{% endblock %}
