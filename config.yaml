@@ -1,0 +1,28 @@
+# Tiro Configuration
+library_path: "./tiro-library"
+
+# API Keys
+anthropic_api_key: ""  # Required for Opus & Haiku
+
+# Server
+host: "127.0.0.1"
+port: 8000
+
+# Ingestion defaults
+default_embedding_model: "all-MiniLM-L6-v2"
+
+# Intelligence
+opus_model: "claude-opus-4-6"
+haiku_model: "claude-haiku-4-5-20251001"
+
+# Content decay
+decay_rate_default: 0.95
+decay_rate_disliked: 0.90
+decay_rate_vip: 0.98
+decay_threshold: 0.1
+
+# Digest email (optional)
+# digest_email: "you@example.com"
+# digest_schedule: "08:00"
+# smtp_host: "localhost"
+# smtp_port: 1025

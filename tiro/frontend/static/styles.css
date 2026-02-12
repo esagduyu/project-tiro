@@ -1,0 +1,74 @@
+/* Tiro — minimal, distraction-free styling */
+
+:root {
+    --bg: #fafafa;
+    --fg: #1a1a1a;
+    --muted: #666;
+    --border: #e0e0e0;
+    --accent: #2563eb;
+    --accent-hover: #1d4ed8;
+    --max-width: 720px;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    line-height: 1.6;
+}
+
+header {
+    border-bottom: 1px solid var(--border);
+    padding: 1rem 2rem;
+}
+
+header nav {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    display: flex;
+    align-items: baseline;
+    gap: 0.75rem;
+}
+
+.logo {
+    font-size: 1.25rem;
+    font-weight: 700;
+    text-decoration: none;
+    color: var(--fg);
+}
+
+.tagline {
+    font-size: 0.875rem;
+    color: var(--muted);
+}
+
+main {
+    max-width: var(--max-width);
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+.hero {
+    text-align: center;
+    padding: 3rem 0;
+}
+
+.hero h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.5rem;
+}
+
+.hero p {
+    color: var(--muted);
+}
+
+.hero .hint {
+    margin-top: 1rem;
+    font-size: 0.875rem;
+}
