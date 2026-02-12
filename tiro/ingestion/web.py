@@ -17,39 +17,80 @@ _LAYOUT_TAGS = {"table", "tbody", "thead", "tfoot", "tr", "td", "th"}
 
 
 def _collect_content_images(html: str) -> list[dict]:
-    """Extract content images from the original HTML before readability strips them.
+    """Extract content images with their surrounding text context.
 
-    Returns a list of {src, alt} dicts for images that appear to be article content
-    (inside <figure> elements or with substantial dimensions), not UI chrome.
+    Walks the content container looking for <figure> elements (or divs wrapping
+    them) and records the text of the element immediately *before* each image.
+    This anchor text is later used to place images in the correct position after
+    readability strips them.
     """
     try:
         tree = fromstring(html)
     except etree.ParserError:
         return []
 
-    images = []
+    # Find the main article content container
+    container = None
+    for selector in [
+        '//*[contains(@class, "body markup")]',       # Substack
+        '//*[contains(@class, "post-content")]',      # WordPress / generic
+        '//*[contains(@class, "article-content")]',   # generic
+        '//*[contains(@class, "entry-content")]',     # WordPress
+    ]:
+        hits = tree.xpath(selector)
+        if hits:
+            container = hits[0]
+            break
+    if container is None:
+        body = tree.find(".//body")
+        container = body if body is not None else tree
 
-    # Collect images from <figure> elements (these are almost always content)
-    for figure in tree.iter("figure"):
-        img = figure.find(".//img")
-        if img is None:
-            continue
-        src = img.get("src", "")
-        if not src:
-            continue
-        alt = img.get("alt", "")
-        caption_el = figure.find(".//figcaption")
-        caption = caption_el.text_content().strip() if caption_el is not None else ""
-        images.append({"src": src, "alt": alt, "caption": caption})
+    images = []
+    prev_text = ""
+
+    for child in container:
+        tag = child.tag
+        cls = child.get("class", "")
+
+        # Check if this element contains a figure/image
+        is_image_container = tag == "figure" or (
+            tag == "div" and "image-container" in cls
+        )
+        if not is_image_container:
+            # Also check for a nested figure
+            fig = child.find(".//figure")
+            if fig is not None:
+                is_image_container = True
+                child = fig  # use the figure for image extraction
+
+        if is_image_container:
+            img = child.find(".//img")
+            if img is not None:
+                src = img.get("src", "")
+                if src:
+                    alt = img.get("alt", "")
+                    caption_el = child.find(".//figcaption")
+                    caption = caption_el.text_content().strip() if caption_el is not None else ""
+                    # Use last ~80 chars of preceding text as anchor
+                    anchor = prev_text.strip()[-80:] if prev_text.strip() else ""
+                    images.append({
+                        "src": src, "alt": alt,
+                        "caption": caption, "anchor": anchor,
+                    })
+        else:
+            text = child.text_content() or ""
+            if text.strip():
+                prev_text = text
 
     return images
 
 
 def _reinject_images(content_html: str, images: list[dict]) -> str:
-    """Re-inject content images that readability stripped.
+    """Re-inject content images at their correct positions using text anchors.
 
-    For each image, find the nearest text anchor in the content and insert the
-    image there.  If no good anchor is found, append images at the end.
+    For each image, finds the paragraph in the readability output whose text
+    ends with the anchor text recorded from the original HTML, and inserts the
+    image immediately after that paragraph.
     """
     if not images:
         return content_html
@@ -59,7 +100,7 @@ def _reinject_images(content_html: str, images: list[dict]) -> str:
     except etree.ParserError:
         return content_html
 
-    # Check which images are already present (by src)
+    # Check which images are already present
     existing_srcs = {img.get("src", "") for img in tree.iter("img")}
     missing = [img for img in images if img["src"] not in existing_srcs]
 
@@ -70,8 +111,15 @@ def _reinject_images(content_html: str, images: list[dict]) -> str:
     body = tree.find(".//body")
     container = body if body is not None else tree
 
-    # Find all block-level text elements to use as anchors
-    blocks = list(container.iter("p", "div", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "li"))
+    # Build list of leaf-level block elements (p, blockquote, headings)
+    # Exclude div since it often wraps everything and matches too broadly
+    leaf_tags = {"p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "li"}
+    blocks = []
+    for el in container.iter():
+        if el.tag in leaf_tags:
+            text = (el.text_content() or "").strip()
+            if text:
+                blocks.append((el, text))
 
     for img_data in missing:
         img_el = etree.Element("img")
@@ -86,18 +134,23 @@ def _reinject_images(content_html: str, images: list[dict]) -> str:
             em = etree.SubElement(wrapper, "em")
             em.text = img_data["caption"]
 
-        if blocks:
-            # Insert after the next available block element
-            anchor = blocks.pop(0) if blocks else None
-            if anchor is not None:
-                parent = anchor.getparent()
-                if parent is not None:
-                    idx = list(parent).index(anchor) + 1
-                    parent.insert(idx, wrapper)
-                    continue
+        anchor = img_data.get("anchor", "")
+        inserted = False
 
-        # Fallback: append at end
-        container.append(wrapper)
+        if anchor:
+            # Find the most specific block element whose text ends with the anchor
+            for el, text in blocks:
+                if text.endswith(anchor) or anchor in text:
+                    parent = el.getparent()
+                    if parent is not None:
+                        idx = list(parent).index(el) + 1
+                        parent.insert(idx, wrapper)
+                        inserted = True
+                        break
+
+        if not inserted:
+            # Fallback: append at end of container
+            container.append(wrapper)
 
     return tostring(tree, encoding="unicode")
 
