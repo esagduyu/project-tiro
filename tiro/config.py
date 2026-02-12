@@ -10,7 +10,6 @@ logger = logging.getLogger(__name__)
 
 DEFAULTS = {
     "library_path": "./tiro-library",
-    "anthropic_api_key": "",
     "host": "127.0.0.1",
     "port": 8000,
     "default_embedding_model": "all-MiniLM-L6-v2",
@@ -26,7 +25,6 @@ DEFAULTS = {
 @dataclass
 class TiroConfig:
     library_path: str = DEFAULTS["library_path"]
-    anthropic_api_key: str = DEFAULTS["anthropic_api_key"]
     host: str = DEFAULTS["host"]
     port: int = DEFAULTS["port"]
     default_embedding_model: str = DEFAULTS["default_embedding_model"]

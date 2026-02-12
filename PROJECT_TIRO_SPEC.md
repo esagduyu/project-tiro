@@ -789,6 +789,10 @@ Respond with JSON:
 
 When building with Claude Code, follow this order. Each checkpoint should result in something testable.
 
+**Dev workflow notes:**
+- Before starting the server: `lsof -ti :8000 | xargs kill -9` to kill any leftover process on the port.
+- If a subagent starts uvicorn for testing, it must kill it before finishing — do not leave orphan server processes.
+
 1. **Checkpoint: Skeleton runs** — FastAPI starts, serves a "Tiro is running" page at localhost:8000, SQLite and ChromaDB initialize on first run.
 
 2. **Checkpoint: Can save a URL** — POST a URL, get back a clean markdown file in `articles/`, metadata in SQLite (including reading time), embedding in ChromaDB. Verify by checking the file and querying the DB.

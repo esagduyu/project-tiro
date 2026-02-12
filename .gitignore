@@ -11,3 +11,6 @@ wheels/
 
 # Tiro library (user data, not committed)
 tiro-library/
+
+# Secrets
+.envrc

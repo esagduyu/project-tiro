@@ -3,13 +3,14 @@
 {% block title %}Tiro — Inbox{% endblock %}
 
 {% block content %}
-<div class="hero">
-    <h1>Tiro is running</h1>
-    <p>A local-first reading OS for the AI age.</p>
-    <p class="hint">Save your first article to get started.</p>
-</div>
-
 <section id="inbox" class="inbox">
-    <!-- Article list will be rendered here -->
+    <div id="empty-state" class="empty-state" style="display: none;">
+        <h2>No articles yet</h2>
+        <p>Save your first article to get started:</p>
+        <code>curl -X POST http://localhost:8000/api/ingest/url \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/article"}'</code>
+    </div>
+    <div id="article-list" class="article-list"></div>
 </section>
 {% endblock %}

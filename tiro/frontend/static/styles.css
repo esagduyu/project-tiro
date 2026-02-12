@@ -3,11 +3,19 @@
 :root {
     --bg: #fafafa;
     --fg: #1a1a1a;
-    --muted: #666;
-    --border: #e0e0e0;
+    --fg-secondary: #444;
+    --muted: #888;
+    --border: #e5e5e5;
     --accent: #2563eb;
     --accent-hover: #1d4ed8;
-    --max-width: 720px;
+    --vip-color: #d97706;
+    --tag-bg: #f0f0f0;
+    --tag-fg: #555;
+    --rate-dislike: #dc2626;
+    --rate-like: #16a34a;
+    --rate-love: #e11d48;
+    --card-hover: #f5f5f5;
+    --max-width: 680px;
 }
 
 * {
@@ -17,15 +25,19 @@
 }
 
 body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+        "Helvetica Neue", Arial, sans-serif;
     background: var(--bg);
     color: var(--fg);
     line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
 }
+
+/* --- Header --- */
 
 header {
     border-bottom: 1px solid var(--border);
-    padding: 1rem 2rem;
+    padding: 0.75rem 2rem;
 }
 
 header nav {
@@ -41,34 +53,223 @@ header nav {
     font-weight: 700;
     text-decoration: none;
     color: var(--fg);
+    letter-spacing: -0.01em;
 }
 
 .tagline {
-    font-size: 0.875rem;
+    font-size: 0.8rem;
     color: var(--muted);
 }
+
+/* --- Main content --- */
 
 main {
     max-width: var(--max-width);
     margin: 0 auto;
-    padding: 2rem;
+    padding: 1.5rem 2rem 3rem;
 }
 
-.hero {
+/* --- Empty state --- */
+
+.empty-state {
     text-align: center;
-    padding: 3rem 0;
-}
-
-.hero h1 {
-    font-size: 1.75rem;
-    margin-bottom: 0.5rem;
-}
-
-.hero p {
+    padding: 4rem 1rem;
     color: var(--muted);
 }
 
-.hero .hint {
-    margin-top: 1rem;
+.empty-state h2 {
+    font-size: 1.25rem;
+    font-weight: 600;
+    color: var(--fg-secondary);
+    margin-bottom: 0.5rem;
+}
+
+.empty-state p {
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+}
+
+.empty-state code {
+    display: block;
+    text-align: left;
+    background: #f5f5f5;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 1rem;
+    font-size: 0.8rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-width: 480px;
+    margin: 0 auto;
+    color: var(--fg-secondary);
+}
+
+/* --- Article list --- */
+
+.article-list {
+    display: flex;
+    flex-direction: column;
+}
+
+/* --- Article card --- */
+
+.article-card {
+    padding: 1.25rem 0;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 1rem;
+    align-items: flex-start;
+}
+
+.article-card:first-child {
+    padding-top: 0;
+}
+
+.article-card.is-read .article-title a {
+    color: var(--muted);
+}
+
+.article-card.is-vip {
+    border-left: 3px solid var(--vip-color);
+    padding-left: 1rem;
+    margin-left: -1rem;
+}
+
+.article-main {
+    flex: 1;
+    min-width: 0;
+}
+
+/* --- Meta line --- */
+
+.article-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 0.25rem;
+}
+
+.source-name {
+    font-weight: 500;
+    color: var(--fg-secondary);
+}
+
+.vip-star {
+    color: var(--vip-color);
+    cursor: pointer;
+    font-size: 0.85rem;
+    opacity: 0.3;
+    transition: opacity 0.15s;
+}
+
+.vip-star:hover {
+    opacity: 0.7;
+}
+
+.vip-star.active {
+    opacity: 1;
+}
+
+.meta-sep {
+    color: var(--border);
+}
+
+/* --- Title --- */
+
+.article-title {
+    font-size: 1.05rem;
+    font-weight: 600;
+    line-height: 1.4;
+    margin-bottom: 0.3rem;
+}
+
+.article-title a {
+    color: var(--fg);
+    text-decoration: none;
+}
+
+.article-title a:hover {
+    color: var(--accent);
+}
+
+/* --- Summary --- */
+
+.article-summary {
     font-size: 0.875rem;
+    color: var(--fg-secondary);
+    line-height: 1.5;
+    margin-bottom: 0.5rem;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+/* --- Tags --- */
+
+.article-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+}
+
+.tag {
+    font-size: 0.7rem;
+    background: var(--tag-bg);
+    color: var(--tag-fg);
+    padding: 0.15rem 0.5rem;
+    border-radius: 3px;
+    letter-spacing: 0.01em;
+}
+
+/* --- Rating buttons --- */
+
+.article-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    padding-top: 0.2rem;
+    flex-shrink: 0;
+}
+
+.rate-btn {
+    width: 32px;
+    height: 28px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    cursor: pointer;
+    font-size: 0.85rem;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s;
+}
+
+.rate-btn:hover {
+    background: var(--card-hover);
+}
+
+.rate-btn.dislike:hover,
+.rate-btn.dislike.active {
+    color: var(--rate-dislike);
+    border-color: var(--rate-dislike);
+    background: #fef2f2;
+}
+
+.rate-btn.like:hover,
+.rate-btn.like.active {
+    color: var(--rate-like);
+    border-color: var(--rate-like);
+    background: #f0fdf4;
+}
+
+.rate-btn.love:hover,
+.rate-btn.love.active {
+    color: var(--rate-love);
+    border-color: var(--rate-love);
+    background: #fff1f2;
 }

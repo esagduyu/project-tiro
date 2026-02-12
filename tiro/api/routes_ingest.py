@@ -6,6 +6,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, HttpUrl
 
+from tiro.database import get_connection
 from tiro.ingestion.processor import process_article
 from tiro.ingestion.web import fetch_and_extract
 
@@ -23,6 +24,18 @@ async def ingest_url(body: IngestURLRequest, request: Request):
     """Save a web page by URL."""
     config = request.app.state.config
     url = str(body.url)
+
+    # Duplicate check
+    conn = get_connection(config.db_path)
+    try:
+        existing = conn.execute(
+            "SELECT id, title FROM articles WHERE url = ?", (url,)
+        ).fetchone()
+    finally:
+        conn.close()
+    if existing:
+        logger.info("Duplicate URL skipped: '%s' already saved as article %d", existing["title"], existing["id"])
+        raise HTTPException(status_code=409, detail=f"Article already saved: \"{existing['title']}\" (id={existing['id']})")
 
     try:
         extracted = await fetch_and_extract(url)

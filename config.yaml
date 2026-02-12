@@ -1,8 +1,7 @@
 # Tiro Configuration
 library_path: "./tiro-library"
 
-# API Keys
-anthropic_api_key: ""  # Required for Opus & Haiku
+# API Keys — set ANTHROPIC_API_KEY environment variable (required for Opus & Haiku)
 
 # Server
 host: "127.0.0.1"

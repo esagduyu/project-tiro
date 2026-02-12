@@ -86,3 +86,5 @@ Checkpoint tracker:
 - Use `uv` for all package management (not pip)
 - hatchling needs explicit `[tool.hatch.build.targets.wheel] packages = ["tiro"]` since project name differs from package dir
 - `uv run python run.py` to start the server
+- **Before starting the server**, always kill any existing process on port 8000: `lsof -ti :8000 | xargs kill -9`
+- **Subagents must clean up**: if a subagent starts uvicorn for testing, it must kill it before finishing

@@ -11,6 +11,7 @@ import frontmatter
 
 from tiro.config import TiroConfig
 from tiro.database import get_connection
+from tiro.ingestion.extractors import extract_metadata
 from tiro.vectorstore import get_collection
 
 logger = logging.getLogger(__name__)
@@ -128,6 +129,51 @@ def process_article(
         conn.commit()
         logger.info("Inserted article %d into SQLite", article_id)
 
+        # --- AI metadata extraction (Haiku) ---
+        ai = extract_metadata(title, content_md, config)
+        summary = ai["summary"]
+        tag_names = ai["tags"]
+        entity_list = ai["entities"]
+
+        if summary:
+            conn.execute(
+                "UPDATE articles SET summary = ? WHERE id = ?",
+                (summary, article_id),
+            )
+
+        for tag_name in tag_names:
+            conn.execute("INSERT OR IGNORE INTO tags (name) VALUES (?)", (tag_name,))
+            tag_row = conn.execute(
+                "SELECT id FROM tags WHERE name = ?", (tag_name,)
+            ).fetchone()
+            conn.execute(
+                "INSERT OR IGNORE INTO article_tags (article_id, tag_id) VALUES (?, ?)",
+                (article_id, tag_row["id"]),
+            )
+
+        for entity in entity_list:
+            conn.execute(
+                "INSERT OR IGNORE INTO entities (name, entity_type) VALUES (?, ?)",
+                (entity["name"], entity["type"]),
+            )
+            ent_row = conn.execute(
+                "SELECT id FROM entities WHERE name = ? AND entity_type = ?",
+                (entity["name"], entity["type"]),
+            ).fetchone()
+            conn.execute(
+                "INSERT OR IGNORE INTO article_entities (article_id, entity_id) VALUES (?, ?)",
+                (article_id, ent_row["id"]),
+            )
+
+        conn.commit()
+
+        # Update frontmatter with AI-extracted metadata
+        post.metadata["tags"] = tag_names
+        post.metadata["entities"] = [e["name"] for e in entity_list]
+        if summary:
+            post.metadata["summary"] = summary
+        md_path.write_text(frontmatter.dumps(post))
+
         # --- Store in ChromaDB ---
         collection = get_collection()
         collection.add(
@@ -138,7 +184,7 @@ def process_article(
                     "title": title,
                     "source": source_name,
                     "is_vip": is_vip,
-                    "tags": "",
+                    "tags": ",".join(tag_names),
                     "published_at": now.strftime("%Y-%m-%d"),
                     "article_id": article_id,
                 }
@@ -156,6 +202,8 @@ def process_article(
             "word_count": word_count,
             "reading_time_min": reading_time_min,
             "markdown_path": md_filename,
+            "summary": summary,
+            "tags": tag_names,
         }
     finally:
         conn.close()
