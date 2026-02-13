@@ -125,10 +125,12 @@ Checkpoint tracker:
 - **Digest generation**: Opus 4.6 generates three digest variants (ranked, by_topic, by_entity) from article summaries + metadata. Prompt templates in `tiro/intelligence/prompts.py`. Cached in SQLite `digests` table by date+type. Opus call wrapped in `asyncio.to_thread()` to avoid blocking the event loop.
 - **Digest caching**: Cache lookup falls back to the most recent digest when today's doesn't exist yet (avoids regenerating at midnight). UI shows a time-ago banner ("Generated 3h ago") and turns yellow/amber when the digest is >24h stale, nudging the user to regenerate.
 - **process_article() uses keyword-only args**: Call as `process_article(**extracted, config=config)`, not positional args.
-- **Browser cache busting**: Static files (CSS/JS) use `?v=N` query params in base.html to force browser reload after changes. Increment the version when modifying static files.
+- **Browser cache busting**: Static files (CSS/JS) use `?v=N` query params in base.html (currently v=10). Increment the version when modifying static files.
 - **Opus JSON responses**: Opus may wrap JSON in ```json fences despite being told not to. Always strip markdown code fences before `json.loads()`. See `analysis.py` for the pattern.
 - **Opus call duration**: Analysis calls can take up to a minute (full article text). Digest calls take 10-30s. UI loading text must reflect actual wait times.
 - **Ingenuity analysis**: On-demand only (not precomputed). Cached in `articles.ingenuity_analysis` (JSON blob). `?refresh=true` to re-analyze. Prompt template in `prompts.py`, logic in `analysis.py`.
 - **Semantic search**: `tiro/search/semantic.py` queries ChromaDB with `.query()`. ChromaDB returns cosine distances (0=identical, 2=opposite); convert to similarity with `1 - (distance / 2)`.
 - **Related articles**: Auto-computed on ingest after ChromaDB add. Top 5 similar stored in `article_relations`. Haiku generates connection notes for top 3. `POST /api/recompute-relations` handles retroactive computation.
 - **Search UI**: Debounced search bar in inbox, results display in same card format with similarity badge. Clear button reloads full inbox.
+- **Clickable tags**: Tags in both inbox and reader are clickable. Inbox tags fill search bar and trigger search. Reader tags navigate to `/?q=tagname`. Inbox JS reads `?q=` URL param on load to support this.
+- **Three-store consistency**: Articles exist in SQLite, ChromaDB, and as markdown files. Deleting an article requires cleaning all three plus junction tables (`article_tags`, `article_entities`, `article_relations`). ChromaDB orphans accumulate silently if not cleaned.
