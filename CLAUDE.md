@@ -73,6 +73,8 @@ lsof -ti :8000 | xargs kill -9
 | Method | Path | Purpose |
 |--------|------|---------|
 | POST | /api/ingest/url | Save a web page |
+| POST | /api/ingest/email | Save an uploaded .eml file |
+| POST | /api/ingest/batch-email | Process all .eml files in a directory |
 | GET | /api/articles | List articles (VIP pinned first) |
 | GET | /api/articles/{id} | Get article with markdown content |
 | PATCH | /api/articles/{id}/rate | Rate article (-1, 1, 2) |
@@ -88,8 +90,8 @@ lsof -ti :8000 | xargs kill -9
 
 ## Current Status
 
-**Working on:** Checkpoint 8 — Email import
-**Completed:** Checkpoints 1–7
+**Working on:** Checkpoint 9 — MCP server
+**Completed:** Checkpoints 1–8
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -101,7 +103,7 @@ Checkpoint tracker:
 [x] 5. Digest generates
 [x] 6. Analysis works
 [x] 7. Search + Related
-[ ] 8. Email import works
+[x] 8. Email import works
 [ ] 9. MCP server connects
 [ ] 10. Learned preferences
 [ ] 11. Keyboard navigation
@@ -125,7 +127,7 @@ Checkpoint tracker:
 - **Digest generation**: Opus 4.6 generates three digest variants (ranked, by_topic, by_entity) from article summaries + metadata. Prompt templates in `tiro/intelligence/prompts.py`. Cached in SQLite `digests` table by date+type. Opus call wrapped in `asyncio.to_thread()` to avoid blocking the event loop.
 - **Digest caching**: Cache lookup falls back to the most recent digest when today's doesn't exist yet (avoids regenerating at midnight). UI shows a time-ago banner ("Generated 3h ago") and turns yellow/amber when the digest is >24h stale, nudging the user to regenerate. `generate_digest()` must return a full datetime string for `created_at` (not just date), otherwise JS parses it as UTC midnight and the banner shows stale immediately.
 - **process_article() uses keyword-only args**: Call as `process_article(**extracted, config=config)`, not positional args.
-- **Browser cache busting**: Static files (CSS/JS) use `?v=N` query params in base.html and reader.html (currently v=12). Increment the version when modifying static files.
+- **Browser cache busting**: Static files (CSS/JS) use `?v=N` query params in base.html and reader.html (currently v=14). Increment the version when modifying static files.
 - **Opus JSON responses**: Opus may wrap JSON in ```json fences despite being told not to. Always strip markdown code fences before `json.loads()`. See `analysis.py` for the pattern.
 - **Opus call duration**: Analysis calls can take up to a minute (full article text). Digest calls take 10-30s. UI loading text must reflect actual wait times.
 - **Ingenuity analysis**: On-demand only (not precomputed). Cached in `articles.ingenuity_analysis` (JSON blob with `analyzed_at` timestamp). `?refresh=true` to re-analyze, `?cache_only=true` to check cache without triggering Opus. Panel shows intro page first, user clicks "Run" to start. Results have collapsible dimension sections and aggregate-score-colored summary.
@@ -134,3 +136,7 @@ Checkpoint tracker:
 - **Search UI**: Debounced search bar in inbox, results display in same card format with similarity badge. Clear button reloads full inbox.
 - **Clickable tags**: Tags in both inbox and reader are clickable. Inbox tags fill search bar and trigger search. Reader tags navigate to `/?q=tagname`. Inbox JS reads `?q=` URL param on load to support this.
 - **Three-store consistency**: Articles exist in SQLite, ChromaDB, and as markdown files. Deleting an article requires cleaning all three plus junction tables (`article_tags`, `article_entities`, `article_relations`). ChromaDB orphans accumulate silently if not cleaned.
+- **Email ingestion** (`tiro/ingestion/email.py`): Parses .eml files via Python `email` stdlib with `policy.default`. Handles multipart (prefers text/html over text/plain). Strips tracking pixels (1x1 images, Substack/Mailchimp tracking URLs) and UTM params from links. Runs HTML through readability + markdownify (same as web). Uses Subject as title, Date header as `published_at`, sender name/email for source creation. `process_article()` extended with optional `published_at` and `email_sender` kwargs.
+- **Email duplicate detection**: Checked by title + email_sender (not URL, since emails have no URL). Sources created with `source_type = "email"` and `email_sender` column.
+- **Email batch import**: `POST /api/ingest/batch-email` accepts `{"path": "/absolute/path"}` — tilde (`~`) is NOT expanded server-side, must use absolute paths or `$HOME`. CLI alternative: `python scripts/import_emails.py ./dir/` (works without server).
+- **Source type pills**: Colored pill badges in inbox meta line — blue "saved" (web), pink "email", amber "rss". Clickable (triggers search). `source_type` must be included in all SQL queries that return article data (articles list, detail, search) or pills fall back to "saved".
