@@ -224,6 +224,16 @@ main {
     letter-spacing: 0.01em;
 }
 
+.clickable-tag {
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.clickable-tag:hover {
+    background: #e0e7ff;
+    color: var(--accent);
+}
+
 /* --- Rating buttons --- */
 
 .article-actions {

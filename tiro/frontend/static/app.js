@@ -211,7 +211,7 @@ function renderArticle(a, showScore) {
     const date = formatDate(a.ingested_at);
     const summary = a.summary || "";
     const tags = (a.tags || [])
-        .map((t) => `<span class="tag">${esc(t)}</span>`)
+        .map((t) => `<span class="tag clickable-tag" data-tag="${esc(t)}">${esc(t)}</span>`)
         .join("");
 
     const ratingMap = { "-1": "dislike", 1: "like", 2: "love" };
@@ -301,6 +301,20 @@ function attachListeners() {
         });
     });
 
+    // Tag click — search by tag
+    document.querySelectorAll(".clickable-tag").forEach((tag) => {
+        tag.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const q = tag.dataset.tag;
+            const input = document.getElementById("search-input");
+            if (input) {
+                input.value = q;
+                document.getElementById("search-clear").style.display = "block";
+                runSearch(q);
+            }
+        });
+    });
+
     // Article title click — mark as read
     document.querySelectorAll(".article-title a").forEach((link) => {
         link.addEventListener("click", async (e) => {
@@ -347,6 +361,17 @@ function setupSearch() {
     const input = document.getElementById("search-input");
     const clearBtn = document.getElementById("search-clear");
     if (!input) return;
+
+    // Check for ?q= URL param (e.g. from reader tag click)
+    const urlParams = new URLSearchParams(window.location.search);
+    const initialQuery = urlParams.get("q");
+    if (initialQuery) {
+        input.value = initialQuery;
+        clearBtn.style.display = "block";
+        runSearch(initialQuery);
+        // Clean up URL without reloading
+        window.history.replaceState({}, "", "/");
+    }
 
     let debounceTimer = null;
 

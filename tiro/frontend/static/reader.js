@@ -71,8 +71,13 @@ async function loadArticle(id) {
         const tagsEl = document.getElementById("reader-tags");
         if (a.tags && a.tags.length) {
             tagsEl.innerHTML = a.tags
-                .map((t) => `<span class="tag">${esc(t)}</span>`)
+                .map((t) => `<span class="tag clickable-tag" data-tag="${esc(t)}">${esc(t)}</span>`)
                 .join("");
+            tagsEl.querySelectorAll(".clickable-tag").forEach((tag) => {
+                tag.addEventListener("click", () => {
+                    window.location.href = `/?q=${encodeURIComponent(tag.dataset.tag)}`;
+                });
+            });
         }
 
         // Summary
