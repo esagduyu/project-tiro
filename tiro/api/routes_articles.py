@@ -1,5 +1,6 @@
 """Article API routes."""
 
+import asyncio
 import logging
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from tiro.database import get_connection
+from tiro.intelligence.analysis import analyze_article, get_cached_analysis
 
 logger = logging.getLogger(__name__)
 
@@ -145,3 +147,27 @@ async def mark_read(article_id: int, request: Request):
         }
     finally:
         conn.close()
+
+
+@router.get("/{article_id}/analysis")
+async def get_analysis(article_id: int, request: Request, refresh: bool = False):
+    """Get or trigger ingenuity/trust analysis for an article."""
+    config = request.app.state.config
+
+    # Return cached unless refresh requested
+    if not refresh:
+        cached = get_cached_analysis(config, article_id)
+        if cached:
+            return {"success": True, "data": cached}
+
+    # Run Opus analysis (blocking call wrapped in thread)
+    try:
+        analysis = await asyncio.to_thread(analyze_article, config, article_id)
+        return {"success": True, "data": analysis}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        logger.error("Analysis failed for article %d: %s", article_id, e)
+        raise HTTPException(status_code=500, detail="Analysis failed")

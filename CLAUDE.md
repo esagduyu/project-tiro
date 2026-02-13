@@ -6,7 +6,7 @@ Tiro is a local-first, open-source, model-agnostic reading OS for the AI age. It
 
 Named after Cicero's freedman who preserved and organized his master's works for posterity.
 
-**Context:** Built solo for the "Built with Opus 4.6: Claude Code Hackathon" (Feb 10–16, 2026). Must be fully open source, built from scratch. See SPEC.md for the full build plan.
+**Context:** Built solo for the "Built with Opus 4.6: Claude Code Hackathon" (Feb 10–16, 2026). Must be fully open source, built from scratch. See PROJECT_TIRO_SPEC.md for the full build plan.
 
 ## Architecture
 
@@ -26,6 +26,8 @@ Storage Layer (all local)
   ├── chroma/ (ChromaDB — vector embeddings)
   └── config.yaml (user configuration)
 ```
+
+**Not yet implemented:** `tiro/search/` and `tiro/mcp/` are empty stubs (checkpoints 7 and 9).
 
 ## Tech Stack
 
@@ -49,15 +51,43 @@ Storage Layer (all local)
 - Structured Anthropic API responses: always request JSON output, parse with error handling
 - Logging via Python logging module, INFO level default
 - Graceful error handling everywhere — never crash the server on bad input
-- See SPEC.md § "Data Models" for the full SQLite schema, markdown format, and ChromaDB collection spec
-- See SPEC.md § "Key Prompt Templates" for all Opus/Haiku prompt templates
-- See SPEC.md § "API Endpoints" for the full endpoint list
+- See PROJECT_TIRO_SPEC.md § "Data Models" for the full SQLite schema, markdown format, and ChromaDB collection spec
+- See PROJECT_TIRO_SPEC.md § "Key Prompt Templates" for all Opus/Haiku prompt templates
+- See PROJECT_TIRO_SPEC.md § "API Endpoints" for the full endpoint list
+
+## Quick Start
+
+```bash
+uv sync                    # Install dependencies
+uv run tiro init           # Initialize library (tiro-library/)
+uv run python run.py       # Start server on localhost:8000
+```
+
+Before starting the server, kill any existing process on port 8000:
+```bash
+lsof -ti :8000 | xargs kill -9
+```
+
+## API Endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| POST | /api/ingest/url | Save a web page |
+| GET | /api/articles | List articles (VIP pinned first) |
+| GET | /api/articles/{id} | Get article with markdown content |
+| PATCH | /api/articles/{id}/rate | Rate article (-1, 1, 2) |
+| PATCH | /api/articles/{id}/read | Mark read, increment open count |
+| GET | /api/sources | List sources with article counts |
+| PATCH | /api/sources/{id}/vip | Toggle VIP status |
+| GET | /api/articles/{id}/analysis | On-demand ingenuity/trust analysis |
+| GET | /api/digest/today | Get/generate daily digest (all 3 variants) |
+| GET | /api/digest/today/{type} | Get specific variant |
 
 ## Current Status
 
-**Working on:** Checkpoint 6 — Analysis works
-**Next up:** Checkpoint 7 — Search + Related
-**Completed:** Checkpoints 1–5 (skeleton runs, can save a URL, inbox shows articles, reader works, digest generates)
+**Working on:** Checkpoint 7 — Search + Related
+**Completed:** Checkpoints 1–6
+**Completed previously:** Checkpoints 1–5 (skeleton runs, can save a URL, inbox shows articles, reader works, digest generates)
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -67,7 +97,7 @@ Checkpoint tracker:
 [x] 3. Inbox shows articles
 [x] 4. Reader works
 [x] 5. Digest generates
-[ ] 6. Analysis works
+[x] 6. Analysis works
 [ ] 7. Search + Related
 [ ] 8. Email import works
 [ ] 9. MCP server connects
@@ -83,10 +113,6 @@ Checkpoint tracker:
 
 ## Decisions & Notes
 
-- Use `uv` for all package management (not pip)
-- hatchling needs explicit `[tool.hatch.build.targets.wheel] packages = ["tiro"]` since project name differs from package dir
-- `uv run python run.py` to start the server
-- **Before starting the server**, always kill any existing process on port 8000: `lsof -ti :8000 | xargs kill -9`
 - **Subagents must clean up**: if a subagent starts uvicorn for testing, it must kill it before finishing
 - **direnv**: user uses direnv for `ANTHROPIC_API_KEY`. Claude Code subprocesses don't inherit direnv env vars, so Haiku extraction fails silently in subagent-started servers. User must start the server from their own terminal for API calls to work.
 - **readability-lxml strips images**: Sites using `<figure>/<picture>` wrappers (Substack, Medium, WordPress) lose all images through readability. Fixed by collecting `<figure>` images with text anchors from the original HTML, then re-injecting them at correct positions in readability's output.

@@ -13,6 +13,7 @@
         <nav class="reader-nav">
             <a href="/" class="back-link">&larr; Back to inbox</a>
             <div class="reader-actions">
+                <button id="analysis-btn" class="analysis-btn" title="Ingenuity Analysis">&#9432;</button>
                 <button class="rate-btn love" data-rating="2" title="Love">&hearts;</button>
                 <button class="rate-btn like" data-rating="1" title="Like">&plus;</button>
                 <button class="rate-btn dislike" data-rating="-1" title="Dislike">&minus;</button>
@@ -39,5 +40,23 @@
         <div id="reader-body" class="reader-body"></div>
     </div>
 </article>
+<!-- Analysis side panel -->
+<div id="analysis-panel" class="analysis-panel">
+    <div class="analysis-panel-header">
+        <h3>Ingenuity Analysis</h3>
+        <button id="analysis-close" class="analysis-close">&times;</button>
+    </div>
+    <div id="analysis-loading" class="analysis-loading" style="display: none;">
+        <div class="digest-spinner"></div>
+        <p>Analyzing with Opus...</p>
+        <p class="digest-loading-sub">This may take up to a minute</p>
+    </div>
+    <div id="analysis-error" class="analysis-error" style="display: none;">
+        <p>Analysis failed.</p>
+        <button id="analysis-retry">Retry</button>
+    </div>
+    <div id="analysis-body" style="display: none;"></div>
+</div>
+<div id="analysis-overlay" class="analysis-overlay"></div>
 <script src="/static/reader.js"></script>
 {% endblock %}

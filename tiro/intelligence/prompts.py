@@ -80,3 +80,38 @@ Map relationships between entities when they appear together.
 - Be insightful — don't just list articles, find the connections and contradictions the reader would miss
 - Keep each entry concise but substantive
 - For the ranked section, number the entries"""
+
+
+def ingenuity_analysis_prompt(full_article_text: str, source_name: str) -> str:
+    """Build the ingenuity/trust analysis prompt for Opus 4.6.
+
+    Args:
+        full_article_text: The full markdown text of the article.
+        source_name: The name of the source (e.g., "Stratechery").
+    """
+    return f"""You are a media literacy analyst. Evaluate this article across three dimensions.
+
+Article: {full_article_text}
+Source: {source_name}
+
+Respond with JSON only — no markdown fences, no commentary:
+{{
+  "bias": {{
+    "score": 1-10,
+    "lean": "left|center-left|center|center-right|right|non-political",
+    "indicators": ["list of specific bias indicators found"],
+    "missing_perspectives": ["perspectives not represented"]
+  }},
+  "factual_confidence": {{
+    "score": 1-10,
+    "well_sourced_claims": ["claims with clear evidence or citations"],
+    "unsourced_assertions": ["claims presented as fact without backing"],
+    "flags": ["any potential misinformation or misleading framing"]
+  }},
+  "novelty": {{
+    "score": 1-10,
+    "assessment": "Brief description of what's new vs. known",
+    "novel_claims": ["genuinely new information or synthesis"]
+  }},
+  "overall_summary": "2-sentence overall assessment of this article's trustworthiness and value."
+}}"""
