@@ -217,10 +217,15 @@ function renderArticle(a, showScore) {
     const ratingMap = { "-1": "dislike", 1: "like", 2: "love" };
     const activeRating = ratingMap[String(a.rating)] || "";
 
+    const sourceType = a.source_type || "web";
+    const sourceTypeLabel = sourceType === "email" ? "email" : sourceType === "rss" ? "rss" : "saved";
+    const sourceTypePill = `<span class="source-type-pill source-type-${sourceType} clickable-tag" data-tag="${esc(sourceTypeLabel)}">${sourceTypeLabel}</span>`;
+
     return `
     <article class="${classes.join(" ")}" data-id="${a.id}">
         <div class="article-main">
             <div class="article-meta">
+                ${sourceTypePill}
                 <span class="source-name">${esc(a.source_name || a.domain || "unknown")}</span>
                 <span class="vip-star ${a.is_vip ? "active" : ""}"
                       data-source-id="${a.source_id}"

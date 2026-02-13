@@ -49,7 +49,8 @@ def search_articles(query: str, config: TiroConfig, limit: int = 10) -> list[dic
         rows = conn.execute(
             f"""SELECT a.id, a.title, a.summary, a.reading_time_min, a.ingested_at,
                        a.is_read, a.rating,
-                       s.name AS source_name, s.domain, s.is_vip, s.id AS source_id
+                       s.name AS source_name, s.domain, s.is_vip, s.id AS source_id,
+                       s.source_type
                 FROM articles a
                 LEFT JOIN sources s ON a.source_id = s.id
                 WHERE a.id IN ({placeholders})""",

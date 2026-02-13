@@ -234,6 +234,49 @@ main {
     color: var(--accent);
 }
 
+/* --- Source type pills --- */
+
+.source-type-pill {
+    font-size: 0.65rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 0.1rem 0.45rem;
+    border-radius: 9px;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.source-type-web {
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+.source-type-web:hover {
+    background: #bfdbfe;
+    color: #1e40af;
+}
+
+.source-type-email {
+    background: #fce7f3;
+    color: #be185d;
+}
+
+.source-type-email:hover {
+    background: #fbcfe8;
+    color: #9d174d;
+}
+
+.source-type-rss {
+    background: #fef3c7;
+    color: #b45309;
+}
+
+.source-type-rss:hover {
+    background: #fde68a;
+    color: #92400e;
+}
+
 /* --- Rating buttons --- */
 
 .article-actions {

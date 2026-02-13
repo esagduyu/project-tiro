@@ -27,7 +27,8 @@ async def get_article(article_id: int, request: Request):
                 a.id, a.title, a.author, a.url, a.slug, a.summary,
                 a.word_count, a.reading_time_min, a.published_at, a.ingested_at,
                 a.is_read, a.rating, a.opened_count, a.markdown_path,
-                s.name AS source_name, s.domain, s.is_vip, s.id AS source_id
+                s.name AS source_name, s.domain, s.is_vip, s.id AS source_id,
+                s.source_type
             FROM articles a
             LEFT JOIN sources s ON a.source_id = s.id
             WHERE a.id = ?
@@ -73,7 +74,8 @@ async def list_articles(request: Request):
                 a.id, a.title, a.author, a.url, a.slug, a.summary,
                 a.word_count, a.reading_time_min, a.published_at, a.ingested_at,
                 a.is_read, a.rating, a.opened_count,
-                s.name AS source_name, s.domain, s.is_vip, s.id AS source_id
+                s.name AS source_name, s.domain, s.is_vip, s.id AS source_id,
+                s.source_type
             FROM articles a
             LEFT JOIN sources s ON a.source_id = s.id
             ORDER BY s.is_vip DESC, a.ingested_at DESC
