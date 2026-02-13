@@ -49,6 +49,9 @@ def _collect_content_images(html: str) -> list[dict]:
     prev_text = ""
 
     for child in container:
+        # Skip non-element nodes (comments, processing instructions)
+        if not isinstance(child.tag, str):
+            continue
         tag = child.tag
         cls = child.get("class", "")
 
