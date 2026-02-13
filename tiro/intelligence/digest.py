@@ -4,7 +4,7 @@ import json
 import logging
 import os
 import re
-from datetime import date
+from datetime import date, datetime, timezone
 
 import anthropic
 
@@ -267,11 +267,12 @@ def generate_digest(config: TiroConfig) -> dict:
     today = date.today().isoformat()
     _cache_digest(config, today, sections, article_ids)
 
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     return {
         dtype: {
             "content": content,
             "article_ids": article_ids,
-            "created_at": today,
+            "created_at": now,
         }
         for dtype, content in sections.items()
     }
