@@ -99,6 +99,9 @@ async function loadArticle(id) {
         // Rating buttons
         setupRating(a.id, a.rating);
 
+        // Related articles
+        loadRelatedArticles(a.id);
+
         // Analysis panel
         setupAnalysis(a.id);
 
@@ -275,6 +278,48 @@ function renderAnalysis(data) {
             <button onclick="fetchAnalysis(${document.getElementById('reader').dataset.articleId}, true)" class="analysis-refresh-btn">Re-analyze</button>
         </div>
     `;
+}
+
+/* --- Related articles --- */
+
+async function loadRelatedArticles(articleId) {
+    const section = document.getElementById("related-articles");
+    const listEl = document.getElementById("related-list");
+
+    try {
+        const res = await fetch(`/api/articles/${articleId}/related`);
+        const json = await res.json();
+
+        if (!json.success || !json.data || !json.data.length) {
+            return;
+        }
+
+        listEl.innerHTML = json.data.map((r) => {
+            const date = formatDate(r.ingested_at);
+            const note = r.connection_note
+                ? `<div class="related-card-note">${esc(r.connection_note)}</div>`
+                : "";
+            const score = Math.round(r.similarity_score * 100);
+            return `
+            <div class="related-card">
+                <a href="/articles/${r.related_article_id}">
+                    <div class="related-card-title">${esc(r.title)}</div>
+                </a>
+                <div class="related-card-meta">
+                    <span>${esc(r.source_name || "")}</span>
+                    <span class="meta-sep">&middot;</span>
+                    <span>${date}</span>
+                    <span class="meta-sep">&middot;</span>
+                    <span class="similarity-badge">${score}% similar</span>
+                </div>
+                ${note}
+            </div>`;
+        }).join("");
+
+        section.style.display = "block";
+    } catch (err) {
+        console.error("Failed to load related articles:", err);
+    }
 }
 
 function renderList(label, items) {

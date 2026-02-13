@@ -510,6 +510,81 @@ main {
     border-bottom-color: var(--accent);
 }
 
+/* --- Search bar --- */
+
+.search-bar {
+    position: relative;
+    margin-bottom: 1.25rem;
+}
+
+.search-bar input {
+    width: 100%;
+    padding: 0.6rem 2.5rem 0.6rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    color: var(--fg);
+    background: white;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.search-bar input:focus {
+    border-color: var(--accent);
+}
+
+.search-bar input::placeholder {
+    color: var(--muted);
+}
+
+.search-clear {
+    position: absolute;
+    right: 0.5rem;
+    top: 50%;
+    transform: translateY(-50%);
+    border: none;
+    background: none;
+    font-size: 1.2rem;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0.25rem;
+    line-height: 1;
+}
+
+.search-clear:hover {
+    color: var(--fg);
+}
+
+.search-results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.search-results-header h3 {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--fg-secondary);
+}
+
+.search-results-count {
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+
+.similarity-badge {
+    font-size: 0.7rem;
+    background: #eff6ff;
+    color: var(--accent);
+    padding: 0.1rem 0.4rem;
+    border-radius: 3px;
+    font-weight: 500;
+}
+
 /* --- Digest view --- */
 
 .digest-tabs {
@@ -677,6 +752,71 @@ main {
 
 .digest-section a[href^="/articles/"]:hover {
     text-decoration: underline;
+}
+
+/* --- Related articles --- */
+
+.related-articles {
+    margin-top: 3rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--border);
+}
+
+.related-header {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fg);
+    margin-bottom: 1rem;
+}
+
+.related-list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.related-card {
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    transition: border-color 0.15s, background 0.15s;
+}
+
+.related-card:hover {
+    border-color: var(--accent);
+    background: #fafbff;
+}
+
+.related-card a {
+    text-decoration: none;
+    color: var(--fg);
+}
+
+.related-card-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+    line-height: 1.4;
+}
+
+.related-card-title:hover {
+    color: var(--accent);
+}
+
+.related-card-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+}
+
+.related-card-note {
+    font-size: 0.8rem;
+    color: var(--fg-secondary);
+    font-style: italic;
+    line-height: 1.4;
 }
 
 /* --- Analysis button --- */

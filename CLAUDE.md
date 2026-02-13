@@ -27,7 +27,7 @@ Storage Layer (all local)
   └── config.yaml (user configuration)
 ```
 
-**Not yet implemented:** `tiro/search/` and `tiro/mcp/` are empty stubs (checkpoints 7 and 9).
+**Not yet implemented:** `tiro/mcp/` is an empty stub (checkpoint 9).
 
 ## Tech Stack
 
@@ -82,12 +82,14 @@ lsof -ti :8000 | xargs kill -9
 | GET | /api/articles/{id}/analysis | On-demand ingenuity/trust analysis |
 | GET | /api/digest/today | Get/generate daily digest (all 3 variants) |
 | GET | /api/digest/today/{type} | Get specific variant |
+| GET | /api/search?q=... | Semantic search across articles |
+| GET | /api/articles/{id}/related | Get related articles with connection notes |
+| POST | /api/recompute-relations | Retroactively compute relations for all articles |
 
 ## Current Status
 
-**Working on:** Checkpoint 7 — Search + Related
-**Completed:** Checkpoints 1–6
-**Completed previously:** Checkpoints 1–5 (skeleton runs, can save a URL, inbox shows articles, reader works, digest generates)
+**Working on:** Checkpoint 8 — Email import
+**Completed:** Checkpoints 1–7
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -98,7 +100,7 @@ Checkpoint tracker:
 [x] 4. Reader works
 [x] 5. Digest generates
 [x] 6. Analysis works
-[ ] 7. Search + Related
+[x] 7. Search + Related
 [ ] 8. Email import works
 [ ] 9. MCP server connects
 [ ] 10. Learned preferences
@@ -114,7 +116,7 @@ Checkpoint tracker:
 ## Decisions & Notes
 
 - **Subagents must clean up**: if a subagent starts uvicorn for testing, it must kill it before finishing
-- **direnv**: user uses direnv for `ANTHROPIC_API_KEY`. Claude Code subprocesses don't inherit direnv env vars, so Haiku extraction fails silently in subagent-started servers. User must start the server from their own terminal for API calls to work.
+- **direnv**: user uses direnv for `ANTHROPIC_API_KEY`. Previously Claude Code subprocesses didn't inherit direnv env vars, but this has been fixed — API calls (Haiku extraction, Opus analysis/digest) now work from subagent-started servers.
 - **readability-lxml strips images**: Sites using `<figure>/<picture>` wrappers (Substack, Medium, WordPress) lose all images through readability. Fixed by collecting `<figure>` images with text anchors from the original HTML, then re-injecting them at correct positions in readability's output.
 - **readability-lxml vs table-layout sites**: Old sites like paulgraham.com use `<table>` for page layout. readability preserves the tables, and markdownify converts them to markdown table syntax, destroying the article structure. Fixed by stripping layout table tags (`table/tr/td/th`) before markdown conversion.
 - **Author extraction**: readability-lxml doesn't extract authors. Added `<meta name="author">` and `<meta property="article:author">` parsing from raw HTML. Works for Substack, Medium, WordPress.
@@ -127,3 +129,6 @@ Checkpoint tracker:
 - **Opus JSON responses**: Opus may wrap JSON in ```json fences despite being told not to. Always strip markdown code fences before `json.loads()`. See `analysis.py` for the pattern.
 - **Opus call duration**: Analysis calls can take up to a minute (full article text). Digest calls take 10-30s. UI loading text must reflect actual wait times.
 - **Ingenuity analysis**: On-demand only (not precomputed). Cached in `articles.ingenuity_analysis` (JSON blob). `?refresh=true` to re-analyze. Prompt template in `prompts.py`, logic in `analysis.py`.
+- **Semantic search**: `tiro/search/semantic.py` queries ChromaDB with `.query()`. ChromaDB returns cosine distances (0=identical, 2=opposite); convert to similarity with `1 - (distance / 2)`.
+- **Related articles**: Auto-computed on ingest after ChromaDB add. Top 5 similar stored in `article_relations`. Haiku generates connection notes for top 3. `POST /api/recompute-relations` handles retroactive computation.
+- **Search UI**: Debounced search bar in inbox, results display in same card format with similarity badge. Clear button reloads full inbox.

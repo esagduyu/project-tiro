@@ -7,6 +7,7 @@ document.addEventListener("DOMContentLoaded", () => {
     loadInbox();
     setupViewTabs();
     setupDigestTabs();
+    setupSearch();
 });
 
 /* ---- View tabs (All Articles / Daily Digest) ---- */
@@ -202,7 +203,7 @@ async function loadInbox() {
     }
 }
 
-function renderArticle(a) {
+function renderArticle(a, showScore) {
     const classes = ["article-card"];
     if (a.is_read) classes.push("is-read");
     if (a.is_vip) classes.push("is-vip");
@@ -228,6 +229,7 @@ function renderArticle(a) {
                 <span>${date}</span>
                 <span class="meta-sep">&middot;</span>
                 <span>${a.reading_time_min || "?"} min</span>
+                ${showScore && a.similarity_score ? `<span class="meta-sep">&middot;</span><span class="similarity-badge">${Math.round(a.similarity_score * 100)}% match</span>` : ""}
             </div>
             <h2 class="article-title">
                 <a href="/articles/${a.id}" data-id="${a.id}">${esc(a.title)}</a>
@@ -337,4 +339,71 @@ function esc(str) {
     const el = document.createElement("span");
     el.textContent = str;
     return el.innerHTML;
+}
+
+/* ---- Search ---- */
+
+function setupSearch() {
+    const input = document.getElementById("search-input");
+    const clearBtn = document.getElementById("search-clear");
+    if (!input) return;
+
+    let debounceTimer = null;
+
+    input.addEventListener("input", () => {
+        const q = input.value.trim();
+        clearBtn.style.display = q ? "block" : "none";
+
+        clearTimeout(debounceTimer);
+        if (!q) {
+            exitSearch();
+            return;
+        }
+        debounceTimer = setTimeout(() => runSearch(q), 300);
+    });
+
+    clearBtn.addEventListener("click", () => {
+        input.value = "";
+        clearBtn.style.display = "none";
+        exitSearch();
+        input.focus();
+    });
+}
+
+async function runSearch(query) {
+    const listEl = document.getElementById("article-list");
+    const emptyEl = document.getElementById("empty-state");
+
+    // Switch to articles view if on digest
+    const articlesTab = document.querySelector('.view-tab[data-view="articles"]');
+    if (articlesTab && !articlesTab.classList.contains("active")) {
+        articlesTab.click();
+    }
+
+    try {
+        const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
+        const json = await res.json();
+
+        if (!json.success || !json.data.length) {
+            listEl.innerHTML = `<div class="search-results-header">
+                <h3>No results for "${esc(query)}"</h3>
+            </div>`;
+            emptyEl.style.display = "none";
+            return;
+        }
+
+        emptyEl.style.display = "none";
+        const header = `<div class="search-results-header">
+            <h3>Results for "${esc(query)}"</h3>
+            <span class="search-results-count">${json.data.length} found</span>
+        </div>`;
+        listEl.innerHTML = header + json.data.map((a) => renderArticle(a, true)).join("");
+        attachListeners();
+    } catch (err) {
+        console.error("Search failed:", err);
+    }
+}
+
+function exitSearch() {
+    loadInbox();
 }

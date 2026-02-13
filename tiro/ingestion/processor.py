@@ -12,6 +12,7 @@ import frontmatter
 from tiro.config import TiroConfig
 from tiro.database import get_connection
 from tiro.ingestion.extractors import extract_metadata
+from tiro.search.semantic import find_related_articles, generate_connection_notes, store_relations
 from tiro.vectorstore import get_collection
 
 logger = logging.getLogger(__name__)
@@ -191,6 +192,15 @@ def process_article(
             ],
         )
         logger.info("Added article %d to ChromaDB", article_id)
+
+        # --- Find and store related articles ---
+        try:
+            relations = find_related_articles(article_id, config, limit=5)
+            if relations:
+                generate_connection_notes(summary or "", title, relations, config)
+                store_relations(article_id, relations, config)
+        except Exception as e:
+            logger.error("Related articles failed for %d: %s", article_id, e)
 
         return {
             "id": article_id,
