@@ -52,6 +52,22 @@ def _get_or_create_source(conn, domain: str) -> int:
     return cursor.lastrowid
 
 
+def _get_or_create_email_source(conn, sender_name: str, sender_email: str) -> int:
+    """Find existing source by email sender or create a new one. Returns source_id."""
+    row = conn.execute(
+        "SELECT id FROM sources WHERE email_sender = ?", (sender_email,)
+    ).fetchone()
+    if row:
+        return row["id"]
+
+    cursor = conn.execute(
+        "INSERT INTO sources (name, email_sender, source_type) VALUES (?, ?, ?)",
+        (sender_name, sender_email, "email"),
+    )
+    conn.commit()
+    return cursor.lastrowid
+
+
 def process_article(
     *,
     title: str,
@@ -59,31 +75,44 @@ def process_article(
     content_md: str,
     url: str,
     config: TiroConfig,
+    published_at: datetime | None = None,
+    email_sender: str | None = None,
 ) -> dict:
     """Run the full storage pipeline: save markdown, insert SQLite, embed in ChromaDB.
+
+    Args:
+        published_at: Override published date (used by email connector for Date header).
+        email_sender: Sender email address (used by email connector for source matching).
 
     Returns a dict of the created article metadata.
     """
     now = datetime.now()
+    pub_date = published_at or now
 
     # --- Word count & reading time ---
     word_count = len(content_md.split())
     reading_time_min = max(1, math.ceil(word_count / 250))
 
     # --- Slug & file path ---
-    slug = generate_slug(title, now)
+    slug = generate_slug(title, pub_date)
     slug = _ensure_unique_slug(slug, config.articles_dir)
     md_filename = f"{slug}.md"
     md_path = config.articles_dir / md_filename
 
     # --- Source detection ---
-    parsed = urlparse(url)
-    domain = parsed.netloc
-    source_name = domain.removeprefix("www.")
+    if email_sender:
+        source_name = author or email_sender.split("@")[0]
+        domain = None
+    else:
+        domain = urlparse(url).netloc
+        source_name = domain.removeprefix("www.")
 
     conn = get_connection(config.db_path)
     try:
-        source_id = _get_or_create_source(conn, domain)
+        if email_sender:
+            source_id = _get_or_create_email_source(conn, source_name, email_sender)
+        else:
+            source_id = _get_or_create_source(conn, domain)
 
         # Check VIP status for ChromaDB metadata
         source_row = conn.execute(
@@ -97,8 +126,8 @@ def process_article(
             "title": title,
             "author": author,
             "source": source_name,
-            "url": url,
-            "published": now.strftime("%Y-%m-%d"),
+            "url": url or "",
+            "published": pub_date.strftime("%Y-%m-%d"),
             "ingested": now.isoformat(timespec="seconds"),
             "tags": [],
             "entities": [],
@@ -112,17 +141,18 @@ def process_article(
         cursor = conn.execute(
             """INSERT INTO articles
                (source_id, title, author, url, slug, markdown_path,
-                word_count, reading_time_min, ingested_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                word_count, reading_time_min, published_at, ingested_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 source_id,
                 title,
                 author,
-                url,
+                url or "",
                 slug,
                 md_filename,
                 word_count,
                 reading_time_min,
+                pub_date.isoformat() if published_at else None,
                 now.isoformat(),
             ),
         )
@@ -186,7 +216,7 @@ def process_article(
                     "source": source_name,
                     "is_vip": is_vip,
                     "tags": ",".join(tag_names),
-                    "published_at": now.strftime("%Y-%m-%d"),
+                    "published_at": pub_date.strftime("%Y-%m-%d"),
                     "article_id": article_id,
                 }
             ],
