@@ -124,3 +124,6 @@ Checkpoint tracker:
 - **Digest caching**: Cache lookup falls back to the most recent digest when today's doesn't exist yet (avoids regenerating at midnight). UI shows a time-ago banner ("Generated 3h ago") and turns yellow/amber when the digest is >24h stale, nudging the user to regenerate.
 - **process_article() uses keyword-only args**: Call as `process_article(**extracted, config=config)`, not positional args.
 - **Browser cache busting**: Static files (CSS/JS) use `?v=N` query params in base.html to force browser reload after changes. Increment the version when modifying static files.
+- **Opus JSON responses**: Opus may wrap JSON in ```json fences despite being told not to. Always strip markdown code fences before `json.loads()`. See `analysis.py` for the pattern.
+- **Opus call duration**: Analysis calls can take up to a minute (full article text). Digest calls take 10-30s. UI loading text must reflect actual wait times.
+- **Ingenuity analysis**: On-demand only (not precomputed). Cached in `articles.ingenuity_analysis` (JSON blob). `?refresh=true` to re-analyze. Prompt template in `prompts.py`, logic in `analysis.py`.
