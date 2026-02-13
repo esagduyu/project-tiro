@@ -36,6 +36,72 @@ Save a URL or email → Extract content (readability + markdownify)
   → Opus 4.6 generates daily digests, trust analysis, and preference learning
 ```
 
+## MCP Server — Connect Tiro to Claude
+
+Tiro includes an MCP (Model Context Protocol) server that exposes your reading library to Claude Desktop and Claude Code. This lets you ask Claude questions like "What articles do I have about AI regulation?" or "Save this URL to my reading library" directly from your AI assistant.
+
+### Available Tools
+
+| Tool | Description |
+|------|-------------|
+| `search_articles(query)` | Semantic search across your library |
+| `get_article(article_id)` | Full article content and metadata |
+| `get_digest(digest_type)` | Today's daily digest (ranked, by_topic, by_entity) |
+| `get_articles_by_tag(tag)` | Articles filtered by topic tag |
+| `get_articles_by_source(source)` | Articles filtered by source name or domain |
+| `save_url(url)` | Save a web page to your library |
+| `save_email(file_path)` | Save an .eml newsletter to your library |
+
+### Claude Code
+
+Add to your project's `.mcp.json` (or `~/.claude/settings.json` under `mcpServers`):
+
+```json
+{
+  "mcpServers": {
+    "tiro": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/project-tiro", "tiro-mcp"],
+      "env": {
+        "ANTHROPIC_API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+### Claude Desktop
+
+Add to your Claude Desktop config file:
+- macOS: `~/Library/Application Support/Claude/claude_desktop_config.json`
+- Windows: `%APPDATA%\Claude\claude_desktop_config.json`
+
+```json
+{
+  "mcpServers": {
+    "tiro": {
+      "command": "uv",
+      "args": ["run", "--directory", "/path/to/project-tiro", "tiro-mcp"],
+      "env": {
+        "ANTHROPIC_API_KEY": "sk-..."
+      }
+    }
+  }
+}
+```
+
+Replace `/path/to/project-tiro` with the actual path to your clone, and add your Anthropic API key.
+
+### Standalone
+
+You can also run the MCP server directly for testing:
+
+```bash
+uv run tiro-mcp
+# or
+uv run python -m tiro.mcp.server
+```
+
 ## License
 
 MIT

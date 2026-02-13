@@ -19,10 +19,12 @@ dependencies = [
     "httpx>=0.28.1",
     "jinja2>=3.1.5",
     "python-multipart>=0.0.20",
+    "mcp>=1.25",
 ]
 
 [project.scripts]
 tiro = "tiro.cli:main"
+tiro-mcp = "tiro.mcp.server:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["tiro"]
