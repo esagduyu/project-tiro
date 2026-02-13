@@ -337,7 +337,7 @@ def get_articles_by_source(source: str) -> str:
 
 
 @mcp.tool()
-def save_url(url: str) -> str:
+async def save_url(url: str) -> str:
     """Save a web page to the Tiro reading library by URL. Fetches the page, extracts content, generates tags/summary with AI, and stores it."""
     config = _get_config()
 
@@ -345,12 +345,12 @@ def save_url(url: str) -> str:
     from tiro.ingestion.processor import process_article
 
     try:
-        extracted = asyncio.run(fetch_and_extract(url))
+        extracted = await fetch_and_extract(url)
     except Exception as e:
         return f"Failed to fetch URL: {e}"
 
     try:
-        result = process_article(**extracted, config=config)
+        result = await asyncio.to_thread(process_article, **extracted, config=config)
     except Exception as e:
         return f"Failed to process article: {e}"
 
