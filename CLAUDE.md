@@ -27,7 +27,7 @@ Storage Layer (all local)
   └── config.yaml (user configuration)
 ```
 
-**Not yet implemented:** `tiro/mcp/` is an empty stub (checkpoint 9).
+**MCP server:** `tiro/mcp/server.py` exposes the library to Claude Desktop and Claude Code via 7 tools (see below).
 
 ## Tech Stack
 
@@ -90,8 +90,8 @@ lsof -ti :8000 | xargs kill -9
 
 ## Current Status
 
-**Working on:** Checkpoint 9 — MCP server
-**Completed:** Checkpoints 1–8
+**Working on:** Checkpoint 10 — Learned preferences
+**Completed:** Checkpoints 1–9
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -104,7 +104,7 @@ Checkpoint tracker:
 [x] 6. Analysis works
 [x] 7. Search + Related
 [x] 8. Email import works
-[ ] 9. MCP server connects
+[x] 9. MCP server connects
 [ ] 10. Learned preferences
 [ ] 11. Keyboard navigation
 [ ] 12. Content decay
@@ -140,3 +140,4 @@ Checkpoint tracker:
 - **Email duplicate detection**: Checked by title + email_sender (not URL, since emails have no URL). Sources created with `source_type = "email"` and `email_sender` column.
 - **Email batch import**: `POST /api/ingest/batch-email` accepts `{"path": "/absolute/path"}` — tilde (`~`) is NOT expanded server-side, must use absolute paths or `$HOME`. CLI alternative: `python scripts/import_emails.py ./dir/` (works without server).
 - **Source type pills**: Colored pill badges in inbox meta line — blue "saved" (web), pink "email", amber "rss". Clickable (triggers search). `source_type` must be included in all SQL queries that return article data (articles list, detail, search) or pills fall back to "saved".
+- **MCP server** (`tiro/mcp/server.py`): FastMCP-based server on stdio transport. 7 tools: `search_articles`, `get_article`, `get_digest`, `get_articles_by_tag`, `get_articles_by_source`, `save_url`, `save_email`. Initializes its own config/SQLite/ChromaDB independently from FastAPI. `save_url` uses `asyncio.run()` to call the async `fetch_and_extract()`. Runnable via `tiro-mcp` CLI entry point or `python -m tiro.mcp.server`. Config for Claude Desktop/Code documented in README.
