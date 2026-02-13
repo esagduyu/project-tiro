@@ -150,7 +150,12 @@ async def mark_read(article_id: int, request: Request):
 
 
 @router.get("/{article_id}/analysis")
-async def get_analysis(article_id: int, request: Request, refresh: bool = False):
+async def get_analysis(
+    article_id: int,
+    request: Request,
+    refresh: bool = False,
+    cache_only: bool = False,
+):
     """Get or trigger ingenuity/trust analysis for an article."""
     config = request.app.state.config
 
@@ -159,6 +164,10 @@ async def get_analysis(article_id: int, request: Request, refresh: bool = False)
         cached = get_cached_analysis(config, article_id)
         if cached:
             return {"success": True, "data": cached}
+
+    # If cache_only, don't trigger a new analysis
+    if cache_only:
+        return {"success": True, "data": None}
 
     # Run Opus analysis (blocking call wrapped in thread)
     try:

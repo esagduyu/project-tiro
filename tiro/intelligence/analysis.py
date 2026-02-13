@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+from datetime import datetime, timezone
 from pathlib import Path
 
 import anthropic
@@ -108,6 +109,9 @@ def analyze_article(config: TiroConfig, article_id: int) -> dict:
         cleaned = "\n".join(lines[1:-1] if lines[-1].strip() == "```" else lines[1:])
 
     analysis = json.loads(cleaned)
+
+    # Embed timestamp before caching
+    analysis["analyzed_at"] = datetime.now(timezone.utc).isoformat()
 
     # Cache the result
     _cache_analysis(config, article_id, analysis)

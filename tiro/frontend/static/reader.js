@@ -175,12 +175,15 @@ function esc(str) {
 
 /* --- Ingenuity Analysis Panel --- */
 
+let analysisResult = null;
+
 function setupAnalysis(articleId) {
     const btn = document.getElementById("analysis-btn");
     const panel = document.getElementById("analysis-panel");
     const overlay = document.getElementById("analysis-overlay");
     const closeBtn = document.getElementById("analysis-close");
     const retryBtn = document.getElementById("analysis-retry");
+    const runBtn = document.getElementById("analysis-run-btn");
 
     function openPanel() {
         panel.classList.add("open");
@@ -194,8 +197,31 @@ function setupAnalysis(articleId) {
     closeBtn.addEventListener("click", closePanel);
     overlay.addEventListener("click", closePanel);
 
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
         openPanel();
+        if (analysisResult) {
+            showAnalysisBody();
+        } else {
+            // Check for cached analysis without triggering a new one
+            try {
+                const res = await fetch(
+                    `/api/articles/${articleId}/analysis?cache_only=true`
+                );
+                const json = await res.json();
+                if (json.success && json.data) {
+                    analysisResult = json.data;
+                    renderAnalysis(json.data);
+                    showAnalysisBody();
+                    return;
+                }
+            } catch (err) {
+                // Ignore — fall through to intro
+            }
+            showAnalysisIntro();
+        }
+    });
+
+    runBtn.addEventListener("click", () => {
         fetchAnalysis(articleId, false);
     });
 
@@ -204,11 +230,27 @@ function setupAnalysis(articleId) {
     });
 }
 
+function showAnalysisIntro() {
+    document.getElementById("analysis-intro").style.display = "block";
+    document.getElementById("analysis-loading").style.display = "none";
+    document.getElementById("analysis-error").style.display = "none";
+    document.getElementById("analysis-body").style.display = "none";
+}
+
+function showAnalysisBody() {
+    document.getElementById("analysis-intro").style.display = "none";
+    document.getElementById("analysis-loading").style.display = "none";
+    document.getElementById("analysis-error").style.display = "none";
+    document.getElementById("analysis-body").style.display = "block";
+}
+
 async function fetchAnalysis(articleId, refresh) {
+    const introEl = document.getElementById("analysis-intro");
     const loadingEl = document.getElementById("analysis-loading");
     const errorEl = document.getElementById("analysis-error");
     const bodyEl = document.getElementById("analysis-body");
 
+    introEl.style.display = "none";
     loadingEl.style.display = "block";
     errorEl.style.display = "none";
     bodyEl.style.display = "none";
@@ -222,6 +264,7 @@ async function fetchAnalysis(articleId, refresh) {
             throw new Error(json.detail || "Analysis failed");
         }
 
+        analysisResult = json.data;
         renderAnalysis(json.data);
         loadingEl.style.display = "none";
         bodyEl.style.display = "block";
@@ -238,6 +281,27 @@ function scoreColor(score) {
     return "score-concern";
 }
 
+function aggregateScoreColor(avg) {
+    if (avg >= 7) return "analysis-summary-good";
+    if (avg >= 5) return "analysis-summary-caution";
+    return "analysis-summary-concern";
+}
+
+function analysisTimeAgo(isoStr) {
+    if (!isoStr) return "";
+    const then = new Date(isoStr);
+    const diffMs = Date.now() - then;
+    const diffMin = Math.floor(diffMs / 60000);
+    const diffHr = Math.floor(diffMin / 60);
+    const diffDay = Math.floor(diffHr / 24);
+
+    if (diffMin < 1) return "just now";
+    if (diffMin < 60) return `${diffMin}m ago`;
+    if (diffHr < 24) return `${diffHr}h ago`;
+    if (diffDay === 1) return "yesterday";
+    return `${diffDay} days ago`;
+}
+
 function renderAnalysis(data) {
     const bodyEl = document.getElementById("analysis-body");
 
@@ -245,39 +309,64 @@ function renderAnalysis(data) {
     const factScore = data.factual_confidence?.score ?? "?";
     const novelScore = data.novelty?.score ?? "?";
 
-    bodyEl.innerHTML = `
-        <div class="analysis-summary">${esc(data.overall_summary || "")}</div>
+    // Compute aggregate score for summary color
+    const scores = [biasScore, factScore, novelScore].filter(
+        (s) => typeof s === "number"
+    );
+    const avgScore =
+        scores.length > 0
+            ? scores.reduce((a, b) => a + b, 0) / scores.length
+            : null;
+    const summaryColorClass =
+        avgScore !== null ? aggregateScoreColor(avgScore) : "";
 
-        <div class="analysis-dimension">
-            <div class="dimension-header">
+    // Timestamp
+    let timestampHtml = "";
+    if (data.analyzed_at) {
+        const ago = analysisTimeAgo(data.analyzed_at);
+        timestampHtml = `<div class="analysis-timestamp">Analyzed ${ago}</div>`;
+    }
+
+    bodyEl.innerHTML = `
+        ${timestampHtml}
+        <div class="analysis-summary ${summaryColorClass}">${esc(data.overall_summary || "")}</div>
+
+        <details class="analysis-dimension">
+            <summary class="dimension-header">
                 <span class="dimension-title">Bias</span>
                 <span class="dimension-score ${scoreColor(biasScore)}">${biasScore}/10</span>
+            </summary>
+            <div class="dimension-content">
+                <div class="dimension-detail">
+                    <span class="dimension-lean">${esc(data.bias?.lean || "")}</span>
+                </div>
+                ${renderList("Indicators", data.bias?.indicators)}
+                ${renderList("Missing perspectives", data.bias?.missing_perspectives)}
             </div>
-            <div class="dimension-detail">
-                <span class="dimension-lean">${esc(data.bias?.lean || "")}</span>
-            </div>
-            ${renderList("Indicators", data.bias?.indicators)}
-            ${renderList("Missing perspectives", data.bias?.missing_perspectives)}
-        </div>
+        </details>
 
-        <div class="analysis-dimension">
-            <div class="dimension-header">
+        <details class="analysis-dimension">
+            <summary class="dimension-header">
                 <span class="dimension-title">Factual Confidence</span>
                 <span class="dimension-score ${scoreColor(factScore)}">${factScore}/10</span>
+            </summary>
+            <div class="dimension-content">
+                ${renderList("Well-sourced claims", data.factual_confidence?.well_sourced_claims)}
+                ${renderList("Unsourced assertions", data.factual_confidence?.unsourced_assertions)}
+                ${renderList("Flags", data.factual_confidence?.flags)}
             </div>
-            ${renderList("Well-sourced claims", data.factual_confidence?.well_sourced_claims)}
-            ${renderList("Unsourced assertions", data.factual_confidence?.unsourced_assertions)}
-            ${renderList("Flags", data.factual_confidence?.flags)}
-        </div>
+        </details>
 
-        <div class="analysis-dimension">
-            <div class="dimension-header">
+        <details class="analysis-dimension">
+            <summary class="dimension-header">
                 <span class="dimension-title">Novelty</span>
                 <span class="dimension-score ${scoreColor(novelScore)}">${novelScore}/10</span>
+            </summary>
+            <div class="dimension-content">
+                <div class="dimension-detail">${esc(data.novelty?.assessment || "")}</div>
+                ${renderList("Novel claims", data.novelty?.novel_claims)}
             </div>
-            <div class="dimension-detail">${esc(data.novelty?.assessment || "")}</div>
-            ${renderList("Novel claims", data.novelty?.novel_claims)}
-        </div>
+        </details>
 
         <div class="analysis-actions">
             <button onclick="fetchAnalysis(${document.getElementById('reader').dataset.articleId}, true)" class="analysis-refresh-btn">Re-analyze</button>

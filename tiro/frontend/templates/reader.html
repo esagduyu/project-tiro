@@ -50,9 +50,29 @@
         <h3>Ingenuity Analysis</h3>
         <button id="analysis-close" class="analysis-close">&times;</button>
     </div>
+    <div id="analysis-intro" class="analysis-intro">
+        <p class="analysis-intro-text">
+            Ingenuity Analysis uses Claude Opus 4.6 to evaluate this article across three dimensions:
+        </p>
+        <div class="analysis-pillars">
+            <div class="analysis-pillar">
+                <strong>Bias</strong>
+                <span>Detects ideological lean, rhetorical framing, and missing perspectives</span>
+            </div>
+            <div class="analysis-pillar">
+                <strong>Factual Confidence</strong>
+                <span>Evaluates sourcing quality, unsupported claims, and red flags</span>
+            </div>
+            <div class="analysis-pillar">
+                <strong>Novelty</strong>
+                <span>Assesses originality of ideas and unique contribution to discourse</span>
+            </div>
+        </div>
+        <button id="analysis-run-btn" class="analysis-run-btn">Run Ingenuity Analysis with Opus 4.6</button>
+    </div>
     <div id="analysis-loading" class="analysis-loading" style="display: none;">
         <div class="digest-spinner"></div>
-        <p>Analyzing with Opus...</p>
+        <p>Analyzing with Opus 4.6...</p>
         <p class="digest-loading-sub">This may take up to a minute</p>
     </div>
     <div id="analysis-error" class="analysis-error" style="display: none;">
@@ -62,5 +82,5 @@
     <div id="analysis-body" style="display: none;"></div>
 </div>
 <div id="analysis-overlay" class="analysis-overlay"></div>
-<script src="/static/reader.js"></script>
+<script src="/static/reader.js?v=12"></script>
 {% endblock %}
