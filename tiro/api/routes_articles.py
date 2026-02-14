@@ -26,7 +26,7 @@ async def get_article(article_id: int, request: Request):
             SELECT
                 a.id, a.title, a.author, a.url, a.slug, a.summary,
                 a.word_count, a.reading_time_min, a.published_at, a.ingested_at,
-                a.is_read, a.rating, a.opened_count, a.markdown_path,
+                a.is_read, a.rating, a.opened_count, a.markdown_path, a.ai_tier,
                 s.name AS source_name, s.domain, s.is_vip, s.id AS source_id,
                 s.source_type
             FROM articles a
@@ -73,7 +73,7 @@ async def list_articles(request: Request):
             SELECT
                 a.id, a.title, a.author, a.url, a.slug, a.summary,
                 a.word_count, a.reading_time_min, a.published_at, a.ingested_at,
-                a.is_read, a.rating, a.opened_count,
+                a.is_read, a.rating, a.opened_count, a.ai_tier,
                 s.name AS source_name, s.domain, s.is_vip, s.id AS source_id,
                 s.source_type
             FROM articles a

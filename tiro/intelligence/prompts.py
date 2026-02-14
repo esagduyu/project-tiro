@@ -115,3 +115,72 @@ Respond with JSON only — no markdown fences, no commentary:
   }},
   "overall_summary": "2-sentence overall assessment of this article's trustworthiness and value."
 }}"""
+
+
+def learned_preferences_prompt(
+    loved_articles: list[dict],
+    liked_articles: list[dict],
+    disliked_articles: list[dict],
+    vip_sources: list[str],
+    unrated_articles: list[dict],
+) -> str:
+    """Build the learned-preferences classification prompt for Opus 4.6.
+
+    Args:
+        loved_articles: Dicts with keys: title, source, summary (rating 2)
+        liked_articles: Dicts with keys: title, source, summary (rating 1)
+        disliked_articles: Dicts with keys: title, source, summary (rating -1)
+        vip_sources: Names of VIP sources
+        unrated_articles: Dicts with keys: id, title, source, summary (to classify)
+    """
+
+    def _format_rated(articles: list[dict]) -> str:
+        if not articles:
+            return "None yet."
+        lines = []
+        for a in articles:
+            lines.append(
+                f"- \"{a['title']}\" ({a['source']}): {a['summary'] or 'No summary.'}"
+            )
+        return "\n".join(lines)
+
+    def _format_unrated(articles: list[dict]) -> str:
+        lines = []
+        for a in articles:
+            lines.append(
+                f"- ID: {a['id']} | \"{a['title']}\" ({a['source']}): "
+                f"{a['summary'] or 'No summary.'}"
+            )
+        return "\n".join(lines)
+
+    vip_str = ", ".join(vip_sources) if vip_sources else "None set"
+
+    return f"""You are learning a user's reading preferences to classify new articles.
+
+## Articles the user LOVED (rating: 2)
+{_format_rated(loved_articles)}
+
+## Articles the user LIKED (rating: 1)
+{_format_rated(liked_articles)}
+
+## Articles the user DISLIKED (rating: -1)
+{_format_rated(disliked_articles)}
+
+## VIP Sources (always prioritize)
+{vip_str}
+
+## Articles to Classify
+{_format_unrated(unrated_articles)}
+
+For each article, classify into one tier:
+- "must-read": User would want to read this in full. Matches their interests, from VIP sources, or high-impact content.
+- "summary-enough": Worth knowing about but the summary captures sufficient value.
+- "discard": Unlikely to interest this user based on their demonstrated preferences.
+
+Respond with JSON only — no markdown fences, no commentary:
+{{
+  "classifications": [
+    {{"article_id": 1, "tier": "must-read", "reason": "brief explanation"}},
+    ...
+  ]
+}}"""

@@ -65,6 +65,7 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     from tiro.api.routes_digest import router as digest_router
     from tiro.api.routes_ingest import router as ingest_router
     from tiro.api.routes_search import router as search_router
+    from tiro.api.routes_classify import router as classify_router
     from tiro.api.routes_sources import router as sources_router
 
     app.include_router(ingest_router)
@@ -72,6 +73,7 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     app.include_router(sources_router)
     app.include_router(digest_router)
     app.include_router(search_router)
+    app.include_router(classify_router)
 
     # Static files and templates
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="static")

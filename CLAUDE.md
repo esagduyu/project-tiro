@@ -87,11 +87,12 @@ lsof -ti :8000 | xargs kill -9
 | GET | /api/search?q=... | Semantic search across articles |
 | GET | /api/articles/{id}/related | Get related articles with connection notes |
 | POST | /api/recompute-relations | Retroactively compute relations for all articles |
+| POST | /api/classify | Classify unrated articles into tiers using Opus 4.6 |
 
 ## Current Status
 
-**Working on:** Checkpoint 10 — Learned preferences
-**Completed:** Checkpoints 1–9
+**Working on:** Checkpoint 11 — Keyboard navigation
+**Completed:** Checkpoints 1–10
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -105,7 +106,7 @@ Checkpoint tracker:
 [x] 7. Search + Related
 [x] 8. Email import works
 [x] 9. MCP server connects
-[ ] 10. Learned preferences
+[x] 10. Learned preferences
 [ ] 11. Keyboard navigation
 [ ] 12. Content decay
 [ ] 13. Reading stats
@@ -144,3 +145,6 @@ Checkpoint tracker:
 - **MCP + ANTHROPIC_API_KEY**: Claude Desktop spawns the MCP server as a child process — direnv env vars are NOT inherited. Must pass `ANTHROPIC_API_KEY` explicitly in the `"env"` block of `claude_desktop_config.json`, otherwise Haiku extraction silently returns empty (no tags, no summary).
 - **HTML comment crash**: `_collect_content_images()` in `web.py` iterates container children — lxml includes `HtmlComment` nodes whose `.tag` is not a string. Must skip non-element nodes with `if not isinstance(child.tag, str): continue`.
 - **Substack UUID URLs**: URLs like `derekthompson.org/p/568334c2-...` are JS-rendered pages with no article content in static HTML. Only `/p/slug-name` format URLs work for Substack ingestion.
+- **Learned preferences**: `tiro/intelligence/preferences.py` uses Opus 4.6 to classify unrated articles into `must-read`, `summary-enough`, or `discard` tiers based on user ratings. Requires at least 5 rated articles. Unrated articles capped at 50. Prompt template in `prompts.py`. Results stored in `articles.ai_tier` column.
+- **Tier-based inbox UI**: Must-read articles get green left border + "Must Read" badge. Summary-enough articles show condensed (1-line summary, no tags). Discard articles hidden by default with "Show discarded" toggle. "Classify inbox" button with count, disabled when fewer than 5 articles are rated. Toolbar appears automatically when articles exist.
+- **ai_tier in all queries**: The `ai_tier` column must be included in all SQL queries returning article data (articles list, detail, AND search) — same pattern as `source_type`.

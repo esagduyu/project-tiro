@@ -21,6 +21,11 @@
   -H "Content-Type: application/json" \
   -d '{"url": "https://example.com/article"}'</code>
     </div>
+    <div id="inbox-toolbar" class="inbox-toolbar" style="display: none;">
+        <button id="classify-btn" class="classify-btn">Classify inbox</button>
+        <button id="discard-toggle" class="discard-toggle" style="display: none;">Show discarded (0)</button>
+        <span id="classify-info" class="classify-info"></span>
+    </div>
     <div id="article-list" class="article-list"></div>
 </section>
 

@@ -184,6 +184,7 @@ function timeAgo(then) {
 async function loadInbox() {
     const listEl = document.getElementById("article-list");
     const emptyEl = document.getElementById("empty-state");
+    const toolbar = document.getElementById("inbox-toolbar");
 
     try {
         const res = await fetch("/api/articles");
@@ -191,12 +192,14 @@ async function loadInbox() {
 
         if (!json.success || !json.data.length) {
             emptyEl.style.display = "block";
+            if (toolbar) toolbar.style.display = "none";
             return;
         }
 
         emptyEl.style.display = "none";
         listEl.innerHTML = json.data.map(renderArticle).join("");
         attachListeners();
+        updateToolbar(json.data);
     } catch (err) {
         console.error("Failed to load articles:", err);
         emptyEl.style.display = "block";
@@ -207,6 +210,7 @@ function renderArticle(a, showScore) {
     const classes = ["article-card"];
     if (a.is_read) classes.push("is-read");
     if (a.is_vip) classes.push("is-vip");
+    if (a.ai_tier) classes.push(`tier-${a.ai_tier}`);
 
     const date = formatDate(a.ingested_at);
     const summary = a.summary || "";
@@ -221,10 +225,15 @@ function renderArticle(a, showScore) {
     const sourceTypeLabel = sourceType === "email" ? "email" : sourceType === "rss" ? "rss" : "saved";
     const sourceTypePill = `<span class="source-type-pill source-type-${sourceType} clickable-tag" data-tag="${esc(sourceTypeLabel)}">${sourceTypeLabel}</span>`;
 
+    const tierBadge = a.ai_tier === "must-read"
+        ? '<span class="tier-badge tier-badge-must-read">Must Read</span>'
+        : "";
+
     return `
     <article class="${classes.join(" ")}" data-id="${a.id}">
         <div class="article-main">
             <div class="article-meta">
+                ${tierBadge}
                 ${sourceTypePill}
                 <span class="source-name">${esc(a.source_name || a.domain || "unknown")}</span>
                 <span class="vip-star ${a.is_vip ? "active" : ""}"
@@ -436,4 +445,97 @@ async function runSearch(query) {
 
 function exitSearch() {
     loadInbox();
+}
+
+/* ---- Tier toolbar (classify button + discard toggle) ---- */
+
+function updateToolbar(articles) {
+    const toolbar = document.getElementById("inbox-toolbar");
+    const classifyBtn = document.getElementById("classify-btn");
+    const discardToggle = document.getElementById("discard-toggle");
+    const classifyInfo = document.getElementById("classify-info");
+    if (!toolbar) return;
+
+    const discardCount = articles.filter((a) => a.ai_tier === "discard").length;
+    const unclassified = articles.filter((a) => !a.ai_tier).length;
+    const ratedCount = articles.filter((a) => a.rating !== null).length;
+
+    toolbar.style.display = "flex";
+
+    // Classify button — show when there are unclassified articles
+    if (unclassified > 0) {
+        classifyBtn.style.display = "inline-flex";
+        classifyBtn.textContent = `Classify inbox (${unclassified})`;
+    } else {
+        classifyBtn.style.display = "none";
+    }
+
+    // Info text — guide user if not enough ratings
+    if (ratedCount < 5) {
+        classifyInfo.textContent = `Rate ${5 - ratedCount} more article${5 - ratedCount === 1 ? "" : "s"} to enable classification`;
+        classifyInfo.style.display = "inline";
+        classifyBtn.disabled = true;
+    } else {
+        classifyInfo.style.display = "none";
+        classifyBtn.disabled = false;
+    }
+
+    // Discard toggle
+    if (discardCount > 0) {
+        discardToggle.style.display = "inline-flex";
+        discardToggle.textContent = `Show discarded (${discardCount})`;
+    } else {
+        discardToggle.style.display = "none";
+    }
+
+    // Attach handlers (safe to call multiple times — we replace onclick)
+    classifyBtn.onclick = classifyArticles;
+    discardToggle.onclick = toggleDiscarded;
+}
+
+async function classifyArticles() {
+    const classifyBtn = document.getElementById("classify-btn");
+    const classifyInfo = document.getElementById("classify-info");
+
+    classifyBtn.disabled = true;
+    classifyBtn.textContent = "Classifying...";
+    classifyInfo.textContent = "Opus 4.6 is learning your preferences — this may take 30–60s";
+    classifyInfo.style.display = "inline";
+
+    try {
+        const res = await fetch("/api/classify", { method: "POST" });
+        const json = await res.json();
+
+        if (!json.success) {
+            classifyInfo.textContent = json.error || "Classification failed";
+            classifyBtn.disabled = false;
+            classifyBtn.textContent = "Classify inbox";
+            return;
+        }
+
+        classifyInfo.textContent = `Classified ${json.data.classified_count} articles`;
+
+        // Reload inbox to show tiers
+        await loadInbox();
+    } catch (err) {
+        console.error("Classification failed:", err);
+        classifyInfo.textContent = "Classification failed — check console";
+        classifyBtn.disabled = false;
+        classifyBtn.textContent = "Classify inbox";
+    }
+}
+
+function toggleDiscarded() {
+    const listEl = document.getElementById("article-list");
+    const toggle = document.getElementById("discard-toggle");
+    if (!listEl || !toggle) return;
+
+    const showing = listEl.classList.toggle("show-discarded");
+    toggle.classList.toggle("active", showing);
+
+    // Update label
+    const count = listEl.querySelectorAll(".tier-discard").length;
+    toggle.textContent = showing
+        ? `Hide discarded (${count})`
+        : `Show discarded (${count})`;
 }
