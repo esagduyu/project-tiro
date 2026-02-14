@@ -291,7 +291,7 @@ function renderArticle(a, showScore) {
             <h2 class="article-title">
                 <a href="/articles/${a.id}" data-id="${a.id}">${esc(a.title)}</a>
             </h2>
-            ${summary ? `<p class="article-summary"><strong>TL;DR</strong> <em>${esc(summary)}</em></p>` : ""}
+            ${summary ? `<p class="article-summary"><strong>TL;DR</strong> &ndash; <em>${esc(summary)}</em></p>` : ""}
             ${tags ? `<div class="article-tags">${tags}</div>` : ""}
         </div>
         <div class="article-actions">
