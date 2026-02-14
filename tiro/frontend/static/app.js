@@ -462,12 +462,14 @@ function updateToolbar(articles) {
 
     toolbar.style.display = "flex";
 
-    // Classify button — show when there are unclassified articles
+    // Classify button — always visible
+    classifyBtn.style.display = "inline-flex";
     if (unclassified > 0) {
-        classifyBtn.style.display = "inline-flex";
         classifyBtn.textContent = `Classify inbox (${unclassified})`;
+        classifyBtn.classList.remove("classify-btn-secondary");
     } else {
-        classifyBtn.style.display = "none";
+        classifyBtn.textContent = "Reclassify";
+        classifyBtn.classList.add("classify-btn-secondary");
     }
 
     // Info text — guide user if not enough ratings
@@ -496,6 +498,7 @@ function updateToolbar(articles) {
 async function classifyArticles() {
     const classifyBtn = document.getElementById("classify-btn");
     const classifyInfo = document.getElementById("classify-info");
+    const isReclassify = classifyBtn.classList.contains("classify-btn-secondary");
 
     classifyBtn.disabled = true;
     classifyBtn.textContent = "Classifying...";
@@ -503,13 +506,15 @@ async function classifyArticles() {
     classifyInfo.style.display = "inline";
 
     try {
-        const res = await fetch("/api/classify", { method: "POST" });
+        const body = isReclassify ? JSON.stringify({ refresh: true }) : undefined;
+        const headers = isReclassify ? { "Content-Type": "application/json" } : {};
+        const res = await fetch("/api/classify", { method: "POST", headers, body });
         const json = await res.json();
 
         if (!json.success) {
             classifyInfo.textContent = json.error || "Classification failed";
             classifyBtn.disabled = false;
-            classifyBtn.textContent = "Classify inbox";
+            classifyBtn.textContent = isReclassify ? "Reclassify" : "Classify inbox";
             return;
         }
 
@@ -521,7 +526,7 @@ async function classifyArticles() {
         console.error("Classification failed:", err);
         classifyInfo.textContent = "Classification failed — check console";
         classifyBtn.disabled = false;
-        classifyBtn.textContent = "Classify inbox";
+        classifyBtn.textContent = isReclassify ? "Reclassify" : "Classify inbox";
     }
 }
 

@@ -406,6 +406,18 @@ main {
     cursor: not-allowed;
 }
 
+.classify-btn-secondary {
+    background: none;
+    color: var(--muted);
+    border-color: var(--border);
+}
+
+.classify-btn-secondary:hover {
+    background: var(--card-hover);
+    color: var(--fg-secondary);
+    border-color: var(--fg-secondary);
+}
+
 .discard-toggle {
     padding: 0.4rem 0.9rem;
     border: 1px solid var(--border);
