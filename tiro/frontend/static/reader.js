@@ -83,7 +83,7 @@ async function loadArticle(id) {
         // Summary
         const summaryEl = document.getElementById("reader-summary");
         if (a.summary) {
-            summaryEl.textContent = a.summary;
+            summaryEl.innerHTML = `<strong>TL;DR</strong> <em>${esc(a.summary)}</em>`;
         } else {
             summaryEl.style.display = "none";
         }

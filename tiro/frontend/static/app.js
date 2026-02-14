@@ -2,12 +2,15 @@
 
 let digestData = null; // cached digest response
 let digestLoaded = false;
+let currentSort = "newest"; // "newest" | "oldest" | "importance"
+let cachedArticles = []; // store articles for re-sorting without re-fetching
 
 document.addEventListener("DOMContentLoaded", () => {
     loadInbox();
     setupViewTabs();
     setupDigestTabs();
     setupSearch();
+    setupSort();
 });
 
 /* ---- View tabs (All Articles / Daily Digest) ---- */
@@ -196,14 +199,52 @@ async function loadInbox() {
             return;
         }
 
+        cachedArticles = json.data;
         emptyEl.style.display = "none";
-        listEl.innerHTML = json.data.map(renderArticle).join("");
-        attachListeners();
-        updateToolbar(json.data);
+        renderSortedInbox();
+        updateToolbar(cachedArticles);
     } catch (err) {
         console.error("Failed to load articles:", err);
         emptyEl.style.display = "block";
     }
+}
+
+function renderSortedInbox() {
+    const listEl = document.getElementById("article-list");
+    const sorted = sortArticles(cachedArticles, currentSort);
+    listEl.innerHTML = sorted.map(renderArticle).join("");
+    attachListeners();
+
+    // Sync the select element
+    const sortSelect = document.getElementById("sort-select");
+    if (sortSelect) sortSelect.value = currentSort;
+}
+
+function sortArticles(articles, mode) {
+    const copy = [...articles];
+    if (mode === "newest") {
+        copy.sort((a, b) => {
+            // VIP pinned first, then newest
+            if (a.is_vip !== b.is_vip) return b.is_vip ? 1 : -1;
+            return new Date(b.ingested_at) - new Date(a.ingested_at);
+        });
+    } else if (mode === "oldest") {
+        copy.sort((a, b) => {
+            if (a.is_vip !== b.is_vip) return b.is_vip ? 1 : -1;
+            return new Date(a.ingested_at) - new Date(b.ingested_at);
+        });
+    } else if (mode === "importance") {
+        const tierOrder = { "must-read": 0, "summary-enough": 1, "discard": 2 };
+        copy.sort((a, b) => {
+            const ta = tierOrder[a.ai_tier] ?? 1.5;
+            const tb = tierOrder[b.ai_tier] ?? 1.5;
+            if (ta !== tb) return ta - tb;
+            // Within same tier: VIP first, then newest
+            if (a.is_vip !== b.is_vip) return b.is_vip ? 1 : -1;
+            return new Date(b.ingested_at) - new Date(a.ingested_at);
+        });
+    }
+    return copy;
 }
 
 function renderArticle(a, showScore) {
@@ -227,6 +268,8 @@ function renderArticle(a, showScore) {
 
     const tierBadge = a.ai_tier === "must-read"
         ? '<span class="tier-badge tier-badge-must-read">Must Read</span>'
+        : a.ai_tier === "summary-enough"
+        ? '<span class="tier-badge tier-badge-summary-enough">Summary</span>'
         : "";
 
     return `
@@ -248,7 +291,7 @@ function renderArticle(a, showScore) {
             <h2 class="article-title">
                 <a href="/articles/${a.id}" data-id="${a.id}">${esc(a.title)}</a>
             </h2>
-            ${summary ? `<p class="article-summary">${esc(summary)}</p>` : ""}
+            ${summary ? `<p class="article-summary"><strong>TL;DR</strong> <em>${esc(summary)}</em></p>` : ""}
             ${tags ? `<div class="article-tags">${tags}</div>` : ""}
         </div>
         <div class="article-actions">
@@ -367,6 +410,20 @@ function esc(str) {
     const el = document.createElement("span");
     el.textContent = str;
     return el.innerHTML;
+}
+
+/* ---- Sort ---- */
+
+function setupSort() {
+    const sortSelect = document.getElementById("sort-select");
+    if (!sortSelect) return;
+
+    sortSelect.addEventListener("change", () => {
+        currentSort = sortSelect.value;
+        if (cachedArticles.length) {
+            renderSortedInbox();
+        }
+    });
 }
 
 /* ---- Search ---- */
@@ -520,7 +577,8 @@ async function classifyArticles() {
 
         classifyInfo.textContent = `Classified ${json.data.classified_count} articles`;
 
-        // Reload inbox to show tiers
+        // Switch to importance sort and reload
+        currentSort = "importance";
         await loadInbox();
     } catch (err) {
         console.error("Classification failed:", err);

@@ -343,6 +343,11 @@ main {
     color: #166534;
 }
 
+.tier-badge-summary-enough {
+    background: #e0e7ff;
+    color: #3730a3;
+}
+
 /* --- Tier card styles --- */
 
 .article-card.tier-must-read {
@@ -355,8 +360,19 @@ main {
     border-left-color: #16a34a;
 }
 
+.article-card.tier-summary-enough {
+    border-left: 3px solid #6366f1;
+    padding-left: 1rem;
+    margin-left: -1rem;
+}
+
+.article-card.tier-summary-enough.is-vip {
+    border-left-color: #6366f1;
+}
+
 .article-card.tier-summary-enough .article-summary {
-    -webkit-line-clamp: 1;
+    -webkit-line-clamp: unset;
+    overflow: visible;
 }
 
 .article-card.tier-summary-enough .article-tags {
@@ -443,6 +459,28 @@ main {
     font-size: 0.75rem;
     color: var(--muted);
     font-style: italic;
+}
+
+.sort-select {
+    margin-left: auto;
+    padding: 0.35rem 0.6rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    font-size: 0.8rem;
+    font-family: inherit;
+    color: var(--fg-secondary);
+    cursor: pointer;
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.sort-select:hover {
+    border-color: var(--fg-secondary);
+}
+
+.sort-select:focus {
+    border-color: var(--accent);
 }
 
 /* --- Reader view --- */
