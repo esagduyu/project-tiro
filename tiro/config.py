@@ -36,6 +36,9 @@ class TiroConfig:
     decay_rate_vip: float = DEFAULTS["decay_rate_vip"]
     decay_threshold: float = DEFAULTS["decay_threshold"]
     anthropic_api_key: str | None = None
+    digest_email: str | None = None
+    smtp_host: str = "localhost"
+    smtp_port: int = 1025
 
     @property
     def library(self) -> Path:

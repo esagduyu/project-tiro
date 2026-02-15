@@ -92,11 +92,11 @@ lsof -ti :8000 | xargs kill -9
 | POST | /api/decay/recalculate | Recalculate content decay weights for all articles |
 | GET | /api/stats?period=week\|month\|all | Reading stats (daily counts, top tags, top sources, streak) |
 | GET | /api/export | Export library as zip (filterable: ?tag=, ?source_id=, ?rating_min=, ?date_from=) |
+| POST | /api/digest/send | Send today's digest via email (requires digest_email in config) |
 
 ## Current Status
 
-**Working on:** Checkpoint 17 — Digest email
-**Completed:** Checkpoints 1–16
+**Completed:** All 17 checkpoints
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -117,7 +117,7 @@ Checkpoint tracker:
 [x] 14. Export works
 [x] 15. Chrome extension
 [x] 16. Packaging
-[ ] 17. Digest email
+[x] 17. Digest email
 -->
 
 ## Playwright MCP
@@ -180,5 +180,6 @@ Playwright MCP is configured at user scope. Use it to visually verify UI changes
 - **Chrome extension** (Checkpoint 15): `extension/` directory with Manifest V3. Popup shows current page title/URL, "Save to Tiro" button, optional VIP toggle. POSTs to `localhost:8000/api/ingest/url`. Shows success with article title + source + "Open in Tiro" link, or error if server not running. Icons: blue circle with white "T" (16/48/128px, generated with Pillow). `process_article()` now returns `source_id` in its response dict so VIP toggle works. Load as unpacked extension via `chrome://extensions`. On popup open, checks `GET /api/ingest/check?url=...` — if already saved, shows "Already in your library" with title, time-ago, and link. `POST /api/ingest/url` 409 duplicate response now returns structured JSON (`{error: "already_saved", data: {id, title, source, ingested_at}}`) instead of plain HTTPException detail string.
 - **Packaging** (Checkpoint 16): pyproject.toml has full metadata (author, classifiers, URLs), MIT LICENSE file, comprehensive README with features/architecture/CLI/extension/MCP/keyboard docs. CLI enhanced: `tiro init` auto-generates `config.yaml` from `config.example.yaml` template, detects existing `ANTHROPIC_API_KEY` from env (shows masked, lets user confirm/replace/paste new), saves chosen key to root `config.yaml`. `load_config()` reads `anthropic_api_key` from config.yaml and sets env var if not already set. `tiro run` auto-opens browser (use `--no-browser` to skip). `tiro import-emails ./dir/` for bulk .eml import. `config.yaml` is gitignored (contains user's API key); `config.example.yaml` is shipped with commented API key options. Fresh install flow: `uv sync` → `uv run tiro init` → `uv run tiro run` (no manual file copying).
 - **Export** UI: Red button with white text on stats page. Clicking opens a confirmation dialog explaining what the zip contains (markdown files, metadata.json, README). Export only triggers after user clicks "Download". Dialog dismissible via Cancel, Esc, or clicking overlay.
+- **Digest email** (Checkpoint 17): `tiro/intelligence/email_digest.py` converts markdown digest to HTML email and sends via SMTP. `POST /api/digest/send` triggers manually. Config: `digest_email`, `smtp_host` (default localhost), `smtp_port` (default 1025). Uses `smtplib`. HTML email has inline styles, absolute article links (`http://host:port/articles/N`), Tiro-branded header/footer. For dev/demo, run mailhog: `docker run -p 1025:1025 -p 8025:8025 mailhog/mailhog`. Returns 400 if no `digest_email` configured, 503 if SMTP connection refused.
 - **Published date display**: Inbox, sorting, and related articles all use `published_at || ingested_at` so email articles show their original send date, not ingestion date. Backend SQL sort uses `COALESCE(published_at, ingested_at)`.
 - **Browser cache busting**: Currently at v=26 in base.html and reader.html. ALWAYS increment when modifying static files.

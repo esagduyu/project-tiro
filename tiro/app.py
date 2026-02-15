@@ -74,11 +74,13 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     from tiro.api.routes_sources import router as sources_router
     from tiro.api.routes_stats import router as stats_router
     from tiro.api.routes_export import router as export_router
+    from tiro.api.routes_digest_email import router as digest_email_router
 
     app.include_router(ingest_router)
     app.include_router(articles_router)
     app.include_router(sources_router)
     app.include_router(digest_router)
+    app.include_router(digest_email_router)
     app.include_router(search_router)
     app.include_router(classify_router)
     app.include_router(decay_router)
