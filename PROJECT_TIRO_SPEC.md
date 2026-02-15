@@ -882,6 +882,7 @@ Everything below is out of scope for the hackathon but represents the full visio
 ### Infrastructure & Distribution
 
 - **Remote access via Tailscale**: Run Tiro on your home server/desktop but access it from anywhere (phone, tablet, laptop) through a Tailscale mesh VPN. Zero port forwarding, zero cloud servers — your device talks directly to your machine over an encrypted tunnel. Pairs naturally with a mobile-responsive frontend. The dream: save an article from your phone on the subway, have it processed by your home server's GPU, read the Opus-generated digest on your commute home.
+- **PyPI publishing / `uvx` install**: Publish `tiro-reader` to PyPI so users can install with `uvx tiro-reader init` / `uvx tiro-reader run` — no git clone needed. Requires: changing default library path from `./tiro-library` to `~/.tiro/`, embedding the config template in code (can't rely on project-root files), and setting up a PyPI release workflow. Chrome extension would be distributed separately. Keep the git clone path for contributors who want hackability. Target for v1.0 when the API surface stabilizes.
 - **Desktop app (Tauri)**: Wrap the web UI in a native desktop shell for a more polished local experience. Auto-starts the backend.
 - **Docker packaging**: `docker-compose up` for zero-dependency deployment. Include ChromaDB and SQLite in the container.
 - **Cloud sync (optional)**: User-controlled sync of the library directory to their own storage (S3, Dropbox, Google Drive, iCloud). Tiro never touches a server the user doesn't own.
