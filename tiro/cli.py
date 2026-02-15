@@ -30,31 +30,43 @@ def cmd_init(args):
             yaml.dump({"library_path": str(config.library)}, default_flow_style=False)
         )
 
-    # Prompt for API key if not already set, save to project-root config.yaml
+    # Prompt for API key, save to project-root config.yaml
     root_config = Path(args.config)
-    api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key:
-        # Check if already in root config
+    env_key = os.environ.get("ANTHROPIC_API_KEY", "")
+    config_key = ""
+    if root_config.exists():
+        config_key = (yaml.safe_load(root_config.read_text()) or {}).get("anthropic_api_key", "")
+
+    print()
+    print("Tiro uses the Anthropic API for AI features (digests, analysis, preferences).")
+    print("Get your API key at https://console.anthropic.com/")
+    print()
+
+    api_key = ""
+    existing_key = env_key or config_key
+    if existing_key:
+        masked = existing_key[:7] + "..." + existing_key[-4:]
+        print(f"Found existing API key: {masked}")
+        choice = input("Use this key? [Y/n] or paste a different one: ").strip()
+        if choice == "" or choice.lower() in ("y", "yes"):
+            api_key = existing_key
+        elif choice.lower() in ("n", "no"):
+            api_key = input("Anthropic API key (or press Enter to skip): ").strip()
+        else:
+            # They pasted a key directly
+            api_key = choice
+    else:
+        api_key = input("Anthropic API key (or press Enter to skip): ").strip()
+
+    if api_key:
+        existing = {}
         if root_config.exists():
             existing = yaml.safe_load(root_config.read_text()) or {}
-            api_key = existing.get("anthropic_api_key", "")
-
-    if not api_key:
-        print()
-        print("Tiro uses the Anthropic API for AI features (digests, analysis, preferences).")
-        print("Get your API key at https://console.anthropic.com/")
-        print()
-        api_key = input("Anthropic API key (or press Enter to skip): ").strip()
-        if api_key:
-            # Merge into root config.yaml
-            existing = {}
-            if root_config.exists():
-                existing = yaml.safe_load(root_config.read_text()) or {}
-            existing["anthropic_api_key"] = api_key
-            root_config.write_text(yaml.dump(existing, default_flow_style=False))
-            print(f"API key saved to {root_config}")
-        else:
-            print("Skipped — set ANTHROPIC_API_KEY env var or add it to config.yaml later.")
+        existing["anthropic_api_key"] = api_key
+        root_config.write_text(yaml.dump(existing, default_flow_style=False))
+        print(f"API key saved to {root_config}")
+    else:
+        print("Skipped — set ANTHROPIC_API_KEY env var or add it to config.yaml later.")
 
     print(f"\nTiro library initialized at {config.library}")
     print(f"Start the server with: uv run tiro run")
