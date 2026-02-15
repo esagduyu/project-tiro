@@ -1602,8 +1602,8 @@ main {
 }
 
 .stats-charts {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
+    display: flex;
+    flex-direction: column;
     gap: 1.5rem;
 }
 
@@ -1636,9 +1636,6 @@ main {
 @media (max-width: 640px) {
     .stats-summary {
         grid-template-columns: repeat(3, 1fr);
-    }
-    .stats-charts {
-        grid-template-columns: 1fr;
     }
     .stats-header {
         flex-direction: column;
