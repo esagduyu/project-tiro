@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+
+{% block title %}Tiro — Reading Stats{% endblock %}
+
+{% block content %}
+<div class="stats-header">
+    <div class="stats-title-row">
+        <h2>Reading Stats</h2>
+        <a href="/" class="back-link">&larr; Back to inbox</a>
+    </div>
+    <div class="stats-controls">
+        <select id="period-select" class="sort-select">
+            <option value="week">Last 7 days</option>
+            <option value="month" selected>Last 30 days</option>
+            <option value="all">All time</option>
+        </select>
+    </div>
+</div>
+
+<!-- Summary cards -->
+<div class="stats-summary" id="stats-summary">
+    <div class="stat-card">
+        <span class="stat-value" id="stat-saved">-</span>
+        <span class="stat-label">Saved</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-value" id="stat-read">-</span>
+        <span class="stat-label">Read</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-value" id="stat-rated">-</span>
+        <span class="stat-label">Rated</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-value" id="stat-time">-</span>
+        <span class="stat-label">Reading time</span>
+    </div>
+    <div class="stat-card stat-card-accent">
+        <span class="stat-value" id="stat-streak">-</span>
+        <span class="stat-label">Day streak</span>
+    </div>
+</div>
+
+<!-- Charts -->
+<div class="stats-charts">
+    <div class="chart-container">
+        <h3 class="chart-title">Articles saved</h3>
+        <canvas id="chart-saved"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3 class="chart-title">Read vs Saved</h3>
+        <canvas id="chart-read-ratio"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3 class="chart-title">Top topics</h3>
+        <div id="topics-empty" class="chart-empty" style="display: none;">No tags yet</div>
+        <canvas id="chart-topics"></canvas>
+    </div>
+    <div class="chart-container">
+        <h3 class="chart-title">Sources by engagement</h3>
+        <div id="sources-empty" class="chart-empty" style="display: none;">No rated articles yet</div>
+        <canvas id="chart-sources"></canvas>
+    </div>
+</div>
+
+<div id="stats-loading" class="stats-loading">
+    <div class="digest-spinner"></div>
+    <p>Loading stats...</p>
+</div>
+
+<div id="stats-empty" class="empty-state" style="display: none;">
+    <h2>No stats yet</h2>
+    <p>Save and read some articles to start building your reading stats.</p>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<script>
+(function() {
+    const periodSelect = document.getElementById('period-select');
+    let chartSaved = null;
+    let chartRatio = null;
+    let chartTopics = null;
+    let chartSources = null;
+
+    const chartColors = {
+        accent: '#2563eb',
+        accentLight: 'rgba(37, 99, 235, 0.15)',
+        green: '#16a34a',
+        greenLight: 'rgba(22, 163, 74, 0.15)',
+        red: '#dc2626',
+        redLight: 'rgba(220, 38, 38, 0.15)',
+        love: '#e11d48',
+        loveLight: 'rgba(225, 29, 72, 0.15)',
+        muted: '#888',
+        border: '#e5e5e5',
+    };
+
+    const chartDefaults = {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+            legend: { display: false },
+        },
+        scales: {
+            x: {
+                grid: { display: false },
+                ticks: { font: { size: 11 }, color: '#888' },
+            },
+            y: {
+                beginAtZero: true,
+                grid: { color: '#f0f0f0' },
+                ticks: { font: { size: 11 }, color: '#888', precision: 0 },
+            },
+        },
+    };
+
+    function formatDate(dateStr) {
+        const d = new Date(dateStr + 'T00:00:00');
+        return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+
+    function formatTime(minutes) {
+        if (minutes < 60) return minutes + 'min';
+        const h = Math.floor(minutes / 60);
+        const m = minutes % 60;
+        return m > 0 ? h + 'h ' + m + 'm' : h + 'h';
+    }
+
+    function destroyCharts() {
+        [chartSaved, chartRatio, chartTopics, chartSources].forEach(c => { if (c) c.destroy(); });
+        chartSaved = chartRatio = chartTopics = chartSources = null;
+    }
+
+    async function loadStats() {
+        const period = periodSelect.value;
+        const loading = document.getElementById('stats-loading');
+        const summary = document.getElementById('stats-summary');
+        const charts = document.querySelector('.stats-charts');
+        const empty = document.getElementById('stats-empty');
+
+        loading.style.display = '';
+        summary.style.display = 'none';
+        charts.style.display = 'none';
+        empty.style.display = 'none';
+
+        try {
+            const res = await fetch('/api/stats?period=' + period);
+            const json = await res.json();
+            if (!json.success) throw new Error('API error');
+
+            const data = json.data;
+            const daily = data.daily_counts;
+            const totals = data.totals;
+
+            // Check if there's any data
+            if (totals.articles_saved === 0 && totals.articles_read === 0 && daily.length === 0) {
+                loading.style.display = 'none';
+                empty.style.display = '';
+                return;
+            }
+
+            // Summary cards
+            document.getElementById('stat-saved').textContent = totals.articles_saved;
+            document.getElementById('stat-read').textContent = totals.articles_read;
+            document.getElementById('stat-rated').textContent = totals.articles_rated;
+            document.getElementById('stat-time').textContent = formatTime(totals.total_reading_time_min);
+            document.getElementById('stat-streak').textContent = data.reading_streak;
+
+            destroyCharts();
+
+            const labels = daily.map(d => formatDate(d.date));
+
+            // Chart 1: Articles saved (bar)
+            chartSaved = new Chart(document.getElementById('chart-saved'), {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: daily.map(d => d.articles_saved),
+                        backgroundColor: chartColors.accentLight,
+                        borderColor: chartColors.accent,
+                        borderWidth: 1.5,
+                        borderRadius: 3,
+                    }]
+                },
+                options: { ...chartDefaults }
+            });
+
+            // Chart 2: Read vs Saved (line)
+            chartRatio = new Chart(document.getElementById('chart-read-ratio'), {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Saved',
+                            data: daily.map(d => d.articles_saved),
+                            borderColor: chartColors.accent,
+                            backgroundColor: chartColors.accentLight,
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 2,
+                            borderWidth: 2,
+                        },
+                        {
+                            label: 'Read',
+                            data: daily.map(d => d.articles_read),
+                            borderColor: chartColors.green,
+                            backgroundColor: chartColors.greenLight,
+                            fill: true,
+                            tension: 0.3,
+                            pointRadius: 2,
+                            borderWidth: 2,
+                        }
+                    ]
+                },
+                options: {
+                    ...chartDefaults,
+                    plugins: {
+                        legend: {
+                            display: true,
+                            position: 'top',
+                            align: 'end',
+                            labels: { boxWidth: 12, font: { size: 11 }, padding: 12 }
+                        }
+                    }
+                }
+            });
+
+            // Chart 3: Top topics (horizontal bar)
+            const topicsEmpty = document.getElementById('topics-empty');
+            const topicsCanvas = document.getElementById('chart-topics');
+            if (data.top_tags.length === 0) {
+                topicsEmpty.style.display = '';
+                topicsCanvas.style.display = 'none';
+            } else {
+                topicsEmpty.style.display = 'none';
+                topicsCanvas.style.display = '';
+                chartTopics = new Chart(topicsCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: data.top_tags.map(t => t.name),
+                        datasets: [{
+                            data: data.top_tags.map(t => t.count),
+                            backgroundColor: chartColors.accentLight,
+                            borderColor: chartColors.accent,
+                            borderWidth: 1.5,
+                            borderRadius: 3,
+                        }]
+                    },
+                    options: {
+                        ...chartDefaults,
+                        indexAxis: 'y',
+                        scales: {
+                            x: {
+                                beginAtZero: true,
+                                grid: { color: '#f0f0f0' },
+                                ticks: { font: { size: 11 }, color: '#888', precision: 0 },
+                            },
+                            y: {
+                                grid: { display: false },
+                                ticks: { font: { size: 11 }, color: '#444' },
+                            },
+                        },
+                    }
+                });
+            }
+
+            // Chart 4: Sources by engagement (horizontal stacked bar)
+            const sourcesEmpty = document.getElementById('sources-empty');
+            const sourcesCanvas = document.getElementById('chart-sources');
+            const ratedSources = data.top_sources.filter(s => s.loves + s.likes + s.dislikes > 0);
+            if (ratedSources.length === 0) {
+                sourcesEmpty.style.display = '';
+                sourcesCanvas.style.display = 'none';
+            } else {
+                sourcesEmpty.style.display = 'none';
+                sourcesCanvas.style.display = '';
+                chartSources = new Chart(sourcesCanvas, {
+                    type: 'bar',
+                    data: {
+                        labels: ratedSources.map(s => s.name),
+                        datasets: [
+                            {
+                                label: 'Love',
+                                data: ratedSources.map(s => s.loves),
+                                backgroundColor: chartColors.loveLight,
+                                borderColor: chartColors.love,
+                                borderWidth: 1,
+                            },
+                            {
+                                label: 'Like',
+                                data: ratedSources.map(s => s.likes),
+                                backgroundColor: chartColors.greenLight,
+                                borderColor: chartColors.green,
+                                borderWidth: 1,
+                            },
+                            {
+                                label: 'Dislike',
+                                data: ratedSources.map(s => s.dislikes),
+                                backgroundColor: chartColors.redLight,
+                                borderColor: chartColors.red,
+                                borderWidth: 1,
+                            },
+                        ]
+                    },
+                    options: {
+                        ...chartDefaults,
+                        indexAxis: 'y',
+                        plugins: {
+                            legend: {
+                                display: true,
+                                position: 'top',
+                                align: 'end',
+                                labels: { boxWidth: 12, font: { size: 11 }, padding: 12 }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                stacked: true,
+                                beginAtZero: true,
+                                grid: { color: '#f0f0f0' },
+                                ticks: { font: { size: 11 }, color: '#888', precision: 0 },
+                            },
+                            y: {
+                                stacked: true,
+                                grid: { display: false },
+                                ticks: { font: { size: 11 }, color: '#444' },
+                            },
+                        },
+                    }
+                });
+            }
+
+            loading.style.display = 'none';
+            summary.style.display = '';
+            charts.style.display = '';
+
+        } catch (err) {
+            console.error('Failed to load stats:', err);
+            loading.style.display = 'none';
+            empty.style.display = '';
+        }
+    }
+
+    periodSelect.addEventListener('change', loadStats);
+    loadStats();
+})();
+</script>
+{% endblock %}

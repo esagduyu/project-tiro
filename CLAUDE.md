@@ -92,8 +92,8 @@ lsof -ti :8000 | xargs kill -9
 
 ## Current Status
 
-**Working on:** Checkpoint 13 — Reading stats
-**Completed:** Checkpoints 1–12
+**Working on:** Checkpoint 14 — Export
+**Completed:** Checkpoints 1–13
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -110,7 +110,7 @@ Checkpoint tracker:
 [x] 10. Learned preferences
 [x] 11. Keyboard navigation
 [x] 12. Content decay
-[ ] 13. Reading stats
+[x] 13. Reading stats
 [ ] 14. Export works
 [ ] 15. Chrome extension
 [ ] 16. Packaging
@@ -153,4 +153,5 @@ Checkpoint tracker:
 - **ai_tier in all queries**: The `ai_tier` column must be included in all SQL queries returning article data (articles list, detail, AND search) — same pattern as `source_type`.
 - **Keyboard navigation** (Checkpoint 11): Full keyboard-first navigation. Inbox: `j`/`k` move selection, `Enter` opens article, `s` toggles VIP, `1`/`2`/`3` rate (dislike/like/love), `/` focuses search, `d` switches to digest, `a` switches to articles, `c` classify/reclassify, `?` shows shortcuts overlay. Digest view: `r` generates or regenerates digest. Reader: `b`/`Esc` goes back, `s` toggles VIP, `1`/`2`/`3` rate, `i` toggles analysis panel, `r` runs/re-runs analysis (when panel open), `?` shows shortcuts. Keys are ignored when focus is on input/select elements. Selected article gets `.kb-selected` highlight class. Shortcuts overlay in `base.html` (shared), populated by JS per view. VIP star in reader view now clickable with `data-source-id`.
 - **Content decay** (Checkpoint 12): `tiro/decay.py` recalculates `relevance_weight` for all articles. Liked/Loved articles immune (1.0). Others decay after 7-day grace period: default 0.95/day, disliked 0.90/day, VIP 0.98/day. Min weight 0.01. Runs on server startup (in `app.py` lifespan) and via `POST /api/decay/recalculate`. `GET /api/articles` supports `?include_decayed=false` (hides articles below threshold). Inbox defaults to hiding decayed articles, "Show archived" toggle to reveal them. Digest prompt includes `relevance_weight` for decay-aware ranking. Config values in `config.yaml` (`decay_rate_default`, `decay_rate_disliked`, `decay_rate_vip`, `decay_threshold`). **Gotcha**: "Show archived" also force-shows discarded articles, since an article can be both decayed and classified as discard — without this, archived+discarded articles stay hidden even after toggling.
-- **Browser cache busting**: Currently at v=18 in base.html and reader.html. ALWAYS increment when modifying static files.
+- **Reading stats** (Checkpoint 13): `tiro/stats.py` provides `update_stat(config, field, increment)` and `get_stats(config, period)`. Stats updates hooked into `process_article()` (articles_saved), `mark_read()` (articles_read + reading_time), `rate_article()` (articles_rated). `GET /api/stats?period=week|month|all` returns daily_counts, totals, top_tags, top_sources (with love/like/dislike breakdowns), reading_streak. Stats page at `/stats` uses Chart.js (CDN) with 4 charts: saved bar, read-vs-saved line, top topics horizontal bar, sources engagement stacked bar. Summary cards show totals + streak. Nav link "Stats" in header.
+- **Browser cache busting**: Currently at v=19 in base.html and reader.html. ALWAYS increment when modifying static files.

@@ -13,6 +13,7 @@ from tiro.config import TiroConfig
 from tiro.database import get_connection
 from tiro.ingestion.extractors import extract_metadata
 from tiro.search.semantic import find_related_articles, generate_connection_notes, store_relations
+from tiro.stats import update_stat
 from tiro.vectorstore import get_collection
 
 logger = logging.getLogger(__name__)
@@ -159,6 +160,12 @@ def process_article(
         article_id = cursor.lastrowid
         conn.commit()
         logger.info("Inserted article %d into SQLite", article_id)
+
+        # --- Update reading stats ---
+        try:
+            update_stat(config, "articles_saved")
+        except Exception as e:
+            logger.error("Failed to update reading stats: %s", e)
 
         # --- AI metadata extraction (Haiku) ---
         ai = extract_metadata(title, content_md, config)

@@ -10,6 +10,7 @@ from pydantic import BaseModel
 
 from tiro.database import get_connection
 from tiro.intelligence.analysis import analyze_article, get_cached_analysis
+from tiro.stats import update_stat
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +129,12 @@ async def rate_article(article_id: int, body: RateRequest, request: Request):
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Article not found")
         conn.commit()
+
+        try:
+            update_stat(config, "articles_rated")
+        except Exception as e:
+            logger.error("Failed to update reading stats: %s", e)
+
         return {"success": True, "data": {"id": article_id, "rating": body.rating}}
     finally:
         conn.close()
@@ -146,6 +153,19 @@ async def mark_read(article_id: int, request: Request):
         if cursor.rowcount == 0:
             raise HTTPException(status_code=404, detail="Article not found")
         conn.commit()
+
+        # Update reading stats
+        try:
+            update_stat(config, "articles_read")
+            reading_time = conn.execute(
+                "SELECT reading_time_min FROM articles WHERE id = ?",
+                (article_id,),
+            ).fetchone()
+            if reading_time and reading_time["reading_time_min"]:
+                update_stat(config, "total_reading_time_min", reading_time["reading_time_min"])
+        except Exception as e:
+            logger.error("Failed to update reading stats: %s", e)
+
         row = conn.execute(
             "SELECT is_read, opened_count FROM articles WHERE id = ?",
             (article_id,),

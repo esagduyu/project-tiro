@@ -1512,3 +1512,137 @@ main {
     padding-bottom: 0.25rem;
     border-bottom: 1px solid var(--border);
 }
+
+/* --- Nav link --- */
+
+.nav-link {
+    margin-left: auto;
+    font-size: 0.85rem;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.nav-link:hover {
+    color: var(--accent);
+}
+
+/* --- Stats page --- */
+
+.stats-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.stats-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+}
+
+.stats-header h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--fg);
+}
+
+.stats-loading {
+    text-align: center;
+    padding: 4rem 1rem;
+    color: var(--muted);
+}
+
+.stats-loading p {
+    font-size: 0.9rem;
+}
+
+.stats-summary {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    text-align: center;
+    padding: 1rem 0.5rem;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.stat-card-accent {
+    border-color: var(--accent);
+    background: #f0f4ff;
+}
+
+.stat-value {
+    display: block;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--fg);
+    line-height: 1.2;
+    margin-bottom: 0.2rem;
+}
+
+.stat-card-accent .stat-value {
+    color: var(--accent);
+}
+
+.stat-label {
+    font-size: 0.75rem;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    font-weight: 500;
+}
+
+.stats-charts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+}
+
+.chart-container {
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1rem 1.25rem 1.25rem;
+}
+
+.chart-container canvas {
+    height: 220px !important;
+}
+
+.chart-title {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--fg-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.chart-empty {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--muted);
+    font-size: 0.85rem;
+    font-style: italic;
+}
+
+@media (max-width: 640px) {
+    .stats-summary {
+        grid-template-columns: repeat(3, 1fr);
+    }
+    .stats-charts {
+        grid-template-columns: 1fr;
+    }
+    .stats-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.75rem;
+    }
+}
