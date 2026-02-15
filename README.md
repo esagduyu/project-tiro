@@ -27,14 +27,16 @@ Named after Cicero's freedman who preserved and organized his master's works for
 ```bash
 git clone https://github.com/esagduyu/project-tiro.git
 cd project-tiro
-uv pip install -e .
-tiro init                 # creates library, prompts for API key
-tiro run                  # starts server at localhost:8000, opens browser
+uv sync                       # creates venv + installs all dependencies
+uv run tiro init              # creates library, prompts for API key
+uv run tiro run               # starts server at localhost:8000, opens browser
 ```
 
 That's it. Save your first article by pasting a URL into the inbox.
 
 > **Tip:** If you use `direnv`, set `ANTHROPIC_API_KEY` in your `.envrc` instead of adding it to config.yaml.
+>
+> **Note:** All `tiro` commands should be run with `uv run tiro` so they execute inside the project's virtual environment.
 
 ---
 
@@ -96,12 +98,12 @@ Storage Layer (all local)
 
 | Command | Description |
 |---------|-------------|
-| `tiro init` | Initialize library, create databases, prompt for API key |
-| `tiro run` | Start server at localhost:8000 and open browser |
-| `tiro run --no-browser` | Start server without opening browser |
-| `tiro export -o backup.zip` | Export library as zip (supports `--tag`, `--source-id`, `--rating-min`, `--date-from` filters) |
-| `tiro import-emails ./newsletters/` | Bulk import .eml files from a directory |
-| `tiro-mcp` | Start the MCP server (for Claude Desktop/Code integration) |
+| `uv run tiro init` | Initialize library, create databases, prompt for API key |
+| `uv run tiro run` | Start server at localhost:8000 and open browser |
+| `uv run tiro run --no-browser` | Start server without opening browser |
+| `uv run tiro export -o backup.zip` | Export library as zip (supports `--tag`, `--source-id`, `--rating-min`, `--date-from` filters) |
+| `uv run tiro import-emails ./newsletters/` | Bulk import .eml files from a directory |
+| `uv run tiro-mcp` | Start the MCP server (for Claude Desktop/Code integration) |
 
 ---
 
@@ -192,9 +194,9 @@ Replace `/path/to/project-tiro` with the actual path to your clone, and add your
 Export your entire library (or a filtered subset) as a portable zip bundle:
 
 ```bash
-tiro export --output my-library.zip
-tiro export --output ai-articles.zip --tag ai
-tiro export --output favorites.zip --rating-min 1
+uv run tiro export --output my-library.zip
+uv run tiro export --output ai-articles.zip --tag ai
+uv run tiro export --output favorites.zip --rating-min 1
 ```
 
 The zip contains:
