@@ -102,6 +102,49 @@ uv run tiro-mcp
 uv run python -m tiro.mcp.server
 ```
 
+## Chrome Extension
+
+A minimal "Save to Tiro" Chrome extension lives in the `extension/` directory. It adds a toolbar button that saves the current page to your local Tiro library with one click.
+
+### Features
+
+- Shows the current page title and URL before saving
+- Optional VIP toggle to mark the source as a favorite
+- Detects if the URL is already saved — shows "Already in your library" with a link to the article
+- Success confirmation with article title, source, and "Open in Tiro" link
+- Error state if the Tiro server isn't running
+
+### Installation
+
+1. Open `chrome://extensions` in Chrome (or any Chromium-based browser)
+2. Enable **Developer mode** (toggle in the top-right corner)
+3. Click **Load unpacked**
+4. Select the `extension/` directory from this repo
+5. The Tiro icon (blue circle with white "T") appears in your toolbar
+
+> The Tiro server must be running at `localhost:8000` for the extension to work.
+
+## Export
+
+Export your entire library (or a filtered subset) as a portable zip bundle:
+
+```bash
+# Full library
+tiro export --output my-library.zip
+
+# Filtered
+tiro export --output ai-articles.zip --tag ai
+tiro export --output favorites.zip --rating-min 1
+tiro export --output recent.zip --date-from 2026-02-01
+```
+
+The zip contains:
+- `articles/` — All markdown files with YAML frontmatter intact
+- `metadata.json` — Full structured data (articles, sources, tags, entities, relations)
+- `README.md` — Bundle format documentation
+
+Also available via the API (`GET /api/export`) and the Export button on the Stats page.
+
 ## License
 
 MIT
