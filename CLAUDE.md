@@ -91,8 +91,8 @@ lsof -ti :8000 | xargs kill -9
 
 ## Current Status
 
-**Working on:** Checkpoint 11 — Keyboard navigation
-**Completed:** Checkpoints 1–10
+**Working on:** Checkpoint 12 — Content decay
+**Completed:** Checkpoints 1–11
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -107,7 +107,7 @@ Checkpoint tracker:
 [x] 8. Email import works
 [x] 9. MCP server connects
 [x] 10. Learned preferences
-[ ] 11. Keyboard navigation
+[x] 11. Keyboard navigation
 [ ] 12. Content decay
 [ ] 13. Reading stats
 [ ] 14. Export works
@@ -128,7 +128,7 @@ Checkpoint tracker:
 - **Digest generation**: Opus 4.6 generates three digest variants (ranked, by_topic, by_entity) from article summaries + metadata. Prompt templates in `tiro/intelligence/prompts.py`. Cached in SQLite `digests` table by date+type. Opus call wrapped in `asyncio.to_thread()` to avoid blocking the event loop.
 - **Digest caching**: Cache lookup falls back to the most recent digest when today's doesn't exist yet (avoids regenerating at midnight). UI shows a time-ago banner ("Generated 3h ago") and turns yellow/amber when the digest is >24h stale, nudging the user to regenerate. `generate_digest()` must return a full datetime string for `created_at` (not just date), otherwise JS parses it as UTC midnight and the banner shows stale immediately.
 - **process_article() uses keyword-only args**: Call as `process_article(**extracted, config=config)`, not positional args.
-- **Browser cache busting**: Static files (CSS/JS) use `?v=N` query params in base.html and reader.html (currently v=14). Increment the version when modifying static files.
+- **Browser cache busting**: Static files (CSS/JS) use `?v=N` query params in base.html and reader.html (currently v=17). Increment the version when modifying static files.
 - **Opus JSON responses**: Opus may wrap JSON in ```json fences despite being told not to. Always strip markdown code fences before `json.loads()`. See `analysis.py` for the pattern.
 - **Opus call duration**: Analysis calls can take up to a minute (full article text). Digest calls take 10-30s. UI loading text must reflect actual wait times.
 - **Ingenuity analysis**: On-demand only (not precomputed). Cached in `articles.ingenuity_analysis` (JSON blob with `analyzed_at` timestamp). `?refresh=true` to re-analyze, `?cache_only=true` to check cache without triggering Opus. Panel shows intro page first, user clicks "Run" to start. Results have collapsible dimension sections and aggregate-score-colored summary.
@@ -150,4 +150,5 @@ Checkpoint tracker:
 - **Inbox sort**: Sort dropdown (top right): Newest first (default), Oldest first, By importance. Auto-switches to "By importance" after classification runs. Importance order: must-read → summary-enough → discard → unclassified. VIP articles pin to top within each sort mode. Articles cached client-side for instant re-sorting.
 - **Summary styling**: Summaries in both inbox and reader show as "**TL;DR** – *summary text*" (bold prefix, en dash, italicized body).
 - **ai_tier in all queries**: The `ai_tier` column must be included in all SQL queries returning article data (articles list, detail, AND search) — same pattern as `source_type`.
-- **Browser cache busting**: Currently at v=16 in base.html and reader.html. ALWAYS increment when modifying static files.
+- **Keyboard navigation** (Checkpoint 11): Full keyboard-first navigation. Inbox: `j`/`k` move selection, `Enter` opens article, `s` toggles VIP, `1`/`2`/`3` rate (dislike/like/love), `/` focuses search, `d` switches to digest, `a` switches to articles, `c` classify/reclassify, `?` shows shortcuts overlay. Digest view: `r` generates or regenerates digest. Reader: `b`/`Esc` goes back, `s` toggles VIP, `1`/`2`/`3` rate, `i` toggles analysis panel, `r` runs/re-runs analysis (when panel open), `?` shows shortcuts. Keys are ignored when focus is on input/select elements. Selected article gets `.kb-selected` highlight class. Shortcuts overlay in `base.html` (shared), populated by JS per view. VIP star in reader view now clickable with `data-source-id`.
+- **Browser cache busting**: Currently at v=17 in base.html and reader.html. ALWAYS increment when modifying static files.

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Tiro{% endblock %}</title>
-    <link rel="stylesheet" href="/static/styles.css?v=16">
+    <link rel="stylesheet" href="/static/styles.css?v=17">
 </head>
 <body>
     <header>
@@ -16,7 +16,17 @@
     <main>
         {% block content %}{% endblock %}
     </main>
+    <!-- Keyboard shortcuts overlay -->
+    <div id="shortcuts-overlay" class="shortcuts-overlay" style="display: none;">
+        <div class="shortcuts-modal">
+            <div class="shortcuts-header">
+                <h3>Keyboard Shortcuts</h3>
+                <button id="shortcuts-close" class="shortcuts-close">&times;</button>
+            </div>
+            <div id="shortcuts-body" class="shortcuts-body"></div>
+        </div>
+    </div>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/static/app.js?v=16"></script>
+    <script src="/static/app.js?v=17"></script>
 </body>
 </html>

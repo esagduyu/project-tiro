@@ -4,6 +4,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const reader = document.getElementById("reader");
     const articleId = reader.dataset.articleId;
     loadArticle(articleId);
+    setupReaderKeyboard(articleId);
 });
 
 async function loadArticle(id) {
@@ -32,11 +33,23 @@ async function loadArticle(id) {
         document.getElementById("reader-source").textContent =
             a.source_name || a.domain || "Unknown source";
 
-        // VIP indicator
-        if (a.is_vip) {
-            const vip = document.getElementById("reader-vip");
+        // VIP indicator (always show, make clickable)
+        const vip = document.getElementById("reader-vip");
+        if (a.source_id) {
             vip.style.display = "inline";
-            vip.classList.add("active");
+            vip.dataset.sourceId = a.source_id;
+            if (a.is_vip) vip.classList.add("active");
+            vip.addEventListener("click", async () => {
+                try {
+                    const res = await fetch(`/api/sources/${a.source_id}/vip`, { method: "PATCH" });
+                    const json = await res.json();
+                    if (json.success) {
+                        vip.classList.toggle("active");
+                    }
+                } catch (err) {
+                    console.error("VIP toggle failed:", err);
+                }
+            });
         }
 
         // Author
@@ -423,4 +436,122 @@ function renderList(label, items) {
         <span class="dimension-list-label">${esc(label)}</span>
         <ul>${lis}</ul>
     </div>`;
+}
+
+/* --- Reader keyboard navigation --- */
+
+function setupReaderKeyboard(articleId) {
+    // Shortcuts overlay close
+    const closeBtn = document.getElementById("shortcuts-close");
+    if (closeBtn) {
+        closeBtn.addEventListener("click", () => {
+            if (typeof hideShortcuts === "function") hideShortcuts();
+        });
+    }
+    const shortcutsOverlay = document.getElementById("shortcuts-overlay");
+    if (shortcutsOverlay) {
+        shortcutsOverlay.addEventListener("click", (e) => {
+            if (e.target === shortcutsOverlay && typeof hideShortcuts === "function") hideShortcuts();
+        });
+    }
+
+    document.addEventListener("keydown", (e) => {
+        // Don't capture when typing in inputs
+        const tag = document.activeElement.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+            if (e.key === "Escape") {
+                document.activeElement.blur();
+                e.preventDefault();
+            }
+            return;
+        }
+
+        // If shortcuts overlay is open, only ? and Escape close it
+        if (shortcutsOverlay && shortcutsOverlay.style.display !== "none") {
+            if (e.key === "?" || e.key === "Escape") {
+                if (typeof hideShortcuts === "function") hideShortcuts();
+                e.preventDefault();
+            }
+            return;
+        }
+
+        // If analysis panel is open, Escape closes it
+        const analysisPanel = document.getElementById("analysis-panel");
+        if (analysisPanel && analysisPanel.classList.contains("open") && e.key === "Escape") {
+            document.getElementById("analysis-close")?.click();
+            e.preventDefault();
+            return;
+        }
+
+        switch (e.key) {
+            case "b":
+            case "Escape":
+                e.preventDefault();
+                window.location.href = "/";
+                break;
+            case "s":
+                e.preventDefault();
+                readerToggleVip();
+                break;
+            case "1":
+                e.preventDefault();
+                readerRate(-1); // dislike
+                break;
+            case "2":
+                e.preventDefault();
+                readerRate(1); // like
+                break;
+            case "3":
+                e.preventDefault();
+                readerRate(2); // love
+                break;
+            case "i":
+                e.preventDefault();
+                readerToggleAnalysis();
+                break;
+            case "r":
+                e.preventDefault();
+                readerRunAnalysis(articleId);
+                break;
+            case "?":
+                e.preventDefault();
+                if (typeof showShortcuts === "function") showShortcuts("reader");
+                break;
+        }
+    });
+}
+
+function readerToggleVip() {
+    const vipEl = document.getElementById("reader-vip");
+    if (!vipEl || !vipEl.dataset.sourceId) return;
+    vipEl.click();
+}
+
+function readerRate(rating) {
+    const ratingMap = { "-1": "dislike", "1": "like", "2": "love" };
+    const className = ratingMap[String(rating)];
+    const btn = document.querySelector(`.reader-actions .rate-btn.${className}`);
+    if (btn) btn.click();
+}
+
+function readerToggleAnalysis() {
+    const panel = document.getElementById("analysis-panel");
+    if (!panel) return;
+    if (panel.classList.contains("open")) {
+        document.getElementById("analysis-close")?.click();
+    } else {
+        document.getElementById("analysis-btn")?.click();
+    }
+}
+
+function readerRunAnalysis(articleId) {
+    const panel = document.getElementById("analysis-panel");
+    if (!panel || !panel.classList.contains("open")) return;
+    // If showing intro, click run; if showing results, re-analyze
+    const runBtn = document.getElementById("analysis-run-btn");
+    if (runBtn && runBtn.offsetParent !== null) {
+        runBtn.click();
+    } else {
+        fetchAnalysis(articleId, true);
+    }
 }

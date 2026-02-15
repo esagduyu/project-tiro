@@ -4,6 +4,7 @@ let digestData = null; // cached digest response
 let digestLoaded = false;
 let currentSort = "newest"; // "newest" | "oldest" | "importance"
 let cachedArticles = []; // store articles for re-sorting without re-fetching
+let selectedIndex = -1; // keyboard-selected article index
 
 document.addEventListener("DOMContentLoaded", () => {
     loadInbox();
@@ -11,6 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     setupDigestTabs();
     setupSearch();
     setupSort();
+    setupKeyboard();
 });
 
 /* ---- View tabs (All Articles / Daily Digest) ---- */
@@ -214,6 +216,7 @@ function renderSortedInbox() {
     const sorted = sortArticles(cachedArticles, currentSort);
     listEl.innerHTML = sorted.map(renderArticle).join("");
     attachListeners();
+    selectedIndex = -1; // reset keyboard selection on re-render
 
     // Sync the select element
     const sortSelect = document.getElementById("sort-select");
@@ -601,4 +604,245 @@ function toggleDiscarded() {
     toggle.textContent = showing
         ? `Hide discarded (${count})`
         : `Show discarded (${count})`;
+}
+
+/* ---- Keyboard navigation ---- */
+
+function setupKeyboard() {
+    // Only activate on the inbox page (not reader)
+    if (!document.getElementById("article-list")) return;
+
+    document.addEventListener("keydown", handleInboxKeydown);
+
+    // Shortcuts overlay close
+    const closeBtn = document.getElementById("shortcuts-close");
+    if (closeBtn) {
+        closeBtn.addEventListener("click", hideShortcuts);
+    }
+    const overlay = document.getElementById("shortcuts-overlay");
+    if (overlay) {
+        overlay.addEventListener("click", (e) => {
+            if (e.target === overlay) hideShortcuts();
+        });
+    }
+}
+
+function handleInboxKeydown(e) {
+    // Don't capture when typing in inputs
+    const tag = document.activeElement.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+        if (e.key === "Escape") {
+            document.activeElement.blur();
+            e.preventDefault();
+        }
+        return;
+    }
+
+    // Don't capture when shortcuts overlay is open (except ? and Escape to close)
+    const overlay = document.getElementById("shortcuts-overlay");
+    if (overlay && overlay.style.display !== "none") {
+        if (e.key === "?" || e.key === "Escape") {
+            hideShortcuts();
+            e.preventDefault();
+        }
+        return;
+    }
+
+    const cards = getVisibleCards();
+
+    switch (e.key) {
+        case "j":
+            e.preventDefault();
+            moveSelection(cards, 1);
+            break;
+        case "k":
+            e.preventDefault();
+            moveSelection(cards, -1);
+            break;
+        case "Enter":
+            e.preventDefault();
+            openSelectedArticle(cards);
+            break;
+        case "s":
+            e.preventDefault();
+            toggleSelectedVip(cards);
+            break;
+        case "1":
+            e.preventDefault();
+            rateSelected(cards, -1); // dislike
+            break;
+        case "2":
+            e.preventDefault();
+            rateSelected(cards, 1); // like
+            break;
+        case "3":
+            e.preventDefault();
+            rateSelected(cards, 2); // love
+            break;
+        case "/":
+            e.preventDefault();
+            document.getElementById("search-input")?.focus();
+            break;
+        case "d":
+            e.preventDefault();
+            switchToDigest();
+            break;
+        case "a":
+            e.preventDefault();
+            switchToArticles();
+            break;
+        case "r":
+            e.preventDefault();
+            // Generate or regenerate digest if in digest view
+            if (isDigestView()) {
+                loadDigest(digestLoaded);
+            }
+            break;
+        case "c":
+            e.preventDefault();
+            // Trigger classify/reclassify if in articles view
+            if (!isDigestView()) {
+                const btn = document.getElementById("classify-btn");
+                if (btn && !btn.disabled) btn.click();
+            }
+            break;
+        case "?":
+            e.preventDefault();
+            showShortcuts("inbox");
+            break;
+    }
+}
+
+function getVisibleCards() {
+    const listEl = document.getElementById("article-list");
+    if (!listEl) return [];
+    // Get only visible cards (not hidden discards)
+    return Array.from(listEl.querySelectorAll(".article-card")).filter(
+        (card) => card.offsetParent !== null
+    );
+}
+
+function moveSelection(cards, direction) {
+    if (!cards.length) return;
+
+    // Clear previous selection
+    const prev = document.querySelector(".article-card.kb-selected");
+    if (prev) prev.classList.remove("kb-selected");
+
+    // Calculate new index
+    if (selectedIndex === -1) {
+        selectedIndex = direction === 1 ? 0 : cards.length - 1;
+    } else {
+        selectedIndex += direction;
+    }
+
+    // Clamp
+    selectedIndex = Math.max(0, Math.min(cards.length - 1, selectedIndex));
+
+    // Apply selection
+    const card = cards[selectedIndex];
+    card.classList.add("kb-selected");
+    card.scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+function openSelectedArticle(cards) {
+    if (selectedIndex < 0 || selectedIndex >= cards.length) return;
+    const card = cards[selectedIndex];
+    const link = card.querySelector(".article-title a");
+    if (link) link.click();
+}
+
+function toggleSelectedVip(cards) {
+    if (selectedIndex < 0 || selectedIndex >= cards.length) return;
+    const card = cards[selectedIndex];
+    const star = card.querySelector(".vip-star");
+    if (star) star.click();
+}
+
+function rateSelected(cards, rating) {
+    if (selectedIndex < 0 || selectedIndex >= cards.length) return;
+    const card = cards[selectedIndex];
+    const btn = card.querySelector(`.rate-btn[data-rating="${rating}"]`);
+    if (btn) btn.click();
+}
+
+function switchToDigest() {
+    const digestTab = document.querySelector('.view-tab[data-view="digest"]');
+    if (digestTab) digestTab.click();
+}
+
+function switchToArticles() {
+    const articlesTab = document.querySelector('.view-tab[data-view="articles"]');
+    if (articlesTab) articlesTab.click();
+}
+
+function isDigestView() {
+    const digestSection = document.getElementById("view-digest");
+    return digestSection && digestSection.style.display !== "none";
+}
+
+/* ---- Shortcuts overlay ---- */
+
+const INBOX_SHORTCUTS = [
+    { section: "Navigation" },
+    { keys: ["j"], desc: "Move down" },
+    { keys: ["k"], desc: "Move up" },
+    { keys: ["Enter"], desc: "Open selected article" },
+    { keys: ["/"], desc: "Focus search bar" },
+    { keys: ["d"], desc: "Switch to digest view" },
+    { keys: ["a"], desc: "Switch to articles view" },
+    { section: "Actions" },
+    { keys: ["s"], desc: "Toggle VIP on selected source" },
+    { keys: ["1"], desc: "Rate dislike" },
+    { keys: ["2"], desc: "Rate like" },
+    { keys: ["3"], desc: "Rate love" },
+    { keys: ["c"], desc: "Classify / reclassify inbox" },
+    { keys: ["r"], desc: "Regenerate digest (in digest view)" },
+    { section: "General" },
+    { keys: ["?"], desc: "Show this help" },
+    { keys: ["Esc"], desc: "Blur search / close overlay" },
+];
+
+const READER_SHORTCUTS = [
+    { section: "Navigation" },
+    { keys: ["b", "Esc"], desc: "Back to inbox" },
+    { section: "Actions" },
+    { keys: ["s"], desc: "Toggle VIP on source" },
+    { keys: ["1"], desc: "Rate dislike" },
+    { keys: ["2"], desc: "Rate like" },
+    { keys: ["3"], desc: "Rate love" },
+    { keys: ["i"], desc: "Toggle analysis panel" },
+    { keys: ["r"], desc: "Run / re-run analysis (panel open)" },
+    { section: "General" },
+    { keys: ["?"], desc: "Show this help" },
+];
+
+function showShortcuts(view) {
+    const overlay = document.getElementById("shortcuts-overlay");
+    const body = document.getElementById("shortcuts-body");
+    if (!overlay || !body) return;
+
+    const shortcuts = view === "reader" ? READER_SHORTCUTS : INBOX_SHORTCUTS;
+
+    body.innerHTML = shortcuts
+        .map((item) => {
+            if (item.section) {
+                return `<div class="shortcut-section">${item.section}</div>`;
+            }
+            const keys = item.keys
+                .map((k) => `<kbd>${esc(k)}</kbd>`)
+                .join(" / ");
+            return `<div class="shortcut-row">
+                <span class="shortcut-keys">${keys}</span>
+                <span class="shortcut-desc">${esc(item.desc)}</span>
+            </div>`;
+        })
+        .join("");
+
+    overlay.style.display = "flex";
+}
+
+function hideShortcuts() {
+    const overlay = document.getElementById("shortcuts-overlay");
+    if (overlay) overlay.style.display = "none";
 }
