@@ -189,6 +189,7 @@ function timeAgo(then) {
 
 async function loadInbox() {
     const listEl = document.getElementById("article-list");
+    if (!listEl) return; // Not on inbox page (e.g. reader)
     const emptyEl = document.getElementById("empty-state");
     const toolbar = document.getElementById("inbox-toolbar");
 

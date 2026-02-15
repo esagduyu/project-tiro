@@ -118,6 +118,25 @@ Checkpoint tracker:
 [ ] 17. Digest email
 -->
 
+## Playwright MCP
+
+Playwright MCP is configured at user scope. Use it to visually verify UI changes — navigate to pages, check chart rendering, test keyboard shortcuts, take screenshots.
+
+**Testing workflow:**
+1. Kill port 8000: `lsof -ti :8000 | xargs kill -9`
+2. Start server: `uv run python run.py` (background)
+3. Use `browser_navigate` to `localhost:8000`, then `browser_snapshot` / `browser_take_screenshot` / `browser_click` / `browser_evaluate` etc.
+4. Kill server when done testing
+
+**Last full test run:** 2026-02-15 — all Checkpoints 1–13 passed. See `docs/PLAYWRIGHT_TEST_NOTES.md` for detailed results, bugs found, and fixes applied.
+
+**Tips from testing:**
+- `browser_snapshot` is better than screenshots for interacting with elements (gives refs for clicking)
+- `browser_evaluate` is useful for inspecting Chart.js instances, checking pixel data, or running `fetch()` against API endpoints
+- `browser_console_messages` with `level: "error"` catches JS runtime errors
+- Charts render on canvas — screenshots may appear blank if taken too early; use `browser_wait_for` with a 1-2s delay
+- Full-page screenshots (`fullPage: true`) capture everything but canvas charts may need scrolling into view first
+
 ## Decisions & Notes
 
 - **Subagents must clean up**: if a subagent starts uvicorn for testing, it must kill it before finishing
@@ -155,4 +174,4 @@ Checkpoint tracker:
 - **Keyboard navigation** (Checkpoint 11): Full keyboard-first navigation. Inbox: `j`/`k` move selection, `Enter` opens article, `s` toggles VIP, `1`/`2`/`3` rate (dislike/like/love), `/` focuses search, `d` switches to digest, `a` switches to articles, `c` classify/reclassify, `g` go to stats, `?` shows shortcuts overlay. Digest view: `r` generates or regenerates digest. Reader: `b`/`Esc` goes back, `s` toggles VIP, `1`/`2`/`3` rate, `i` toggles analysis panel, `r` runs/re-runs analysis (when panel open), `g` go to stats, `?` shows shortcuts. Stats page: `b`/`Esc` back to inbox, `?` shows shortcuts. Keys are ignored when focus is on input/select elements. Selected article gets `.kb-selected` highlight class. Shortcuts overlay in `base.html` (shared), populated by JS per view. VIP star in reader view now clickable with `data-source-id`.
 - **Content decay** (Checkpoint 12): `tiro/decay.py` recalculates `relevance_weight` for all articles. Liked/Loved articles immune (1.0). Others decay after 7-day grace period: default 0.95/day, disliked 0.90/day, VIP 0.98/day. Min weight 0.01. Runs on server startup (in `app.py` lifespan) and via `POST /api/decay/recalculate`. `GET /api/articles` supports `?include_decayed=false` (hides articles below threshold). Inbox defaults to hiding decayed articles, "Show archived" toggle to reveal them. Digest prompt includes `relevance_weight` for decay-aware ranking. Config values in `config.yaml` (`decay_rate_default`, `decay_rate_disliked`, `decay_rate_vip`, `decay_threshold`). **Gotcha**: "Show archived" also force-shows discarded articles, since an article can be both decayed and classified as discard — without this, archived+discarded articles stay hidden even after toggling.
 - **Reading stats** (Checkpoint 13): `tiro/stats.py` provides `update_stat(config, field, increment)` and `get_stats(config, period)`. Stats updates hooked into `process_article()` (articles_saved), `mark_read()` (articles_read + reading_time), `rate_article()` (articles_rated). `GET /api/stats?period=week|month|all` returns daily_counts, totals, top_tags, top_sources (with love/like/dislike breakdowns), reading_streak. Stats page at `/stats` uses Chart.js (CDN) with 4 charts: saved bar, read-vs-saved line, top topics horizontal bar, sources engagement stacked bar. Summary cards show totals + streak. Nav link "Stats" in header. Charts stacked vertically (single-column). Love color is purple (#7c3aed) to distinguish from red dislike.
-- **Browser cache busting**: Currently at v=22 in base.html and reader.html. ALWAYS increment when modifying static files.
+- **Browser cache busting**: Currently at v=23 in base.html and reader.html. ALWAYS increment when modifying static files.
