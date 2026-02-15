@@ -611,7 +611,18 @@ async function classifyArticles() {
 
 function toggleArchived() {
     showArchived = !showArchived;
-    loadInbox();
+    loadInbox().then(() => {
+        if (!showArchived) return;
+        // When showing archived, also force-show discarded so archived+discarded articles appear
+        const listEl = document.getElementById("article-list");
+        if (listEl) listEl.classList.add("show-discarded");
+        const discardToggle = document.getElementById("discard-toggle");
+        if (discardToggle) {
+            const count = listEl.querySelectorAll(".tier-discard").length;
+            discardToggle.textContent = `Hide discarded (${count})`;
+            discardToggle.classList.add("active");
+        }
+    });
 }
 
 function toggleDiscarded() {
