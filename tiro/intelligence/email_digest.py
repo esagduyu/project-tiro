@@ -36,10 +36,14 @@ def send_digest_email(config: TiroConfig) -> dict:
     html_body = _digest_to_html(digest_content, config)
     plain_body = digest_content
 
+    # Determine sender address
+    from_addr = config.smtp_user or "tiro@localhost"
+    from_display = f"Tiro <{from_addr}>"
+
     # Build the email
     msg = MIMEMultipart("alternative")
     msg["Subject"] = f"Tiro Daily Digest — {_format_date(today)}"
-    msg["From"] = f"Tiro <tiro@localhost>"
+    msg["From"] = from_display
     msg["To"] = config.digest_email
 
     msg.attach(MIMEText(plain_body, "plain", "utf-8"))
@@ -47,13 +51,33 @@ def send_digest_email(config: TiroConfig) -> dict:
 
     # Send via SMTP
     try:
-        with smtplib.SMTP(config.smtp_host, config.smtp_port) as server:
-            server.sendmail("tiro@localhost", [config.digest_email], msg.as_string())
+        if config.smtp_user and config.smtp_password:
+            # Authenticated SMTP (e.g. Gmail with app password)
+            if config.smtp_use_tls:
+                with smtplib.SMTP(config.smtp_host, config.smtp_port) as server:
+                    server.starttls()
+                    server.login(config.smtp_user, config.smtp_password)
+                    server.sendmail(from_addr, [config.digest_email], msg.as_string())
+            else:
+                with smtplib.SMTP_SSL(config.smtp_host, config.smtp_port) as server:
+                    server.login(config.smtp_user, config.smtp_password)
+                    server.sendmail(from_addr, [config.digest_email], msg.as_string())
+        else:
+            # Plain SMTP (e.g. local mailhog)
+            with smtplib.SMTP(config.smtp_host, config.smtp_port) as server:
+                server.sendmail(from_addr, [config.digest_email], msg.as_string())
         logger.info("Digest email sent to %s via %s:%d", config.digest_email, config.smtp_host, config.smtp_port)
     except (ConnectionRefusedError, OSError) as e:
         raise RuntimeError(
             f"Could not connect to SMTP server at {config.smtp_host}:{config.smtp_port}. "
+            f"For Gmail, use smtp.gmail.com:587 with an app password. "
             f"For local testing, run: docker run -p 1025:1025 -p 8025:8025 mailhog/mailhog"
+        ) from e
+    except smtplib.SMTPAuthenticationError as e:
+        raise RuntimeError(
+            f"SMTP authentication failed for {config.smtp_user}. "
+            f"For Gmail, use an App Password (not your regular password): "
+            f"https://myaccount.google.com/apppasswords"
         ) from e
 
     return {

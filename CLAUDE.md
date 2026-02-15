@@ -93,10 +93,13 @@ lsof -ti :8000 | xargs kill -9
 | GET | /api/stats?period=week\|month\|all | Reading stats (daily counts, top tags, top sources, streak) |
 | GET | /api/export | Export library as zip (filterable: ?tag=, ?source_id=, ?rating_min=, ?date_from=) |
 | POST | /api/digest/send | Send today's digest via email (requires digest_email in config) |
+| POST | /api/ingest/imap | Check IMAP inbox for new newsletters and ingest them |
+| GET | /api/settings/email | Get email config (passwords masked) |
+| POST | /api/settings/email | Update email config (Gmail address, app password, features) |
 
 ## Current Status
 
-**Completed:** All 17 checkpoints
+**Completed:** All 18 checkpoints
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -118,6 +121,7 @@ Checkpoint tracker:
 [x] 15. Chrome extension
 [x] 16. Packaging
 [x] 17. Digest email
+[x] 18. Gmail IMAP + SMTP integration
 -->
 
 ## Playwright MCP
@@ -182,4 +186,5 @@ Playwright MCP is configured at user scope. Use it to visually verify UI changes
 - **Export** UI: Red button with white text on stats page. Clicking opens a confirmation dialog explaining what the zip contains (markdown files, metadata.json, README). Export only triggers after user clicks "Download". Dialog dismissible via Cancel, Esc, or clicking overlay.
 - **Digest email** (Checkpoint 17): `tiro/intelligence/email_digest.py` converts markdown digest to HTML email and sends via SMTP. `POST /api/digest/send` triggers manually. Config: `digest_email`, `smtp_host` (default localhost), `smtp_port` (default 1025). Uses `smtplib`. HTML email has inline styles, absolute article links (`http://host:port/articles/N`), Tiro-branded header/footer. For dev/demo, run mailhog: `docker run -p 1025:1025 -p 8025:8025 mailhog/mailhog`. Returns 400 if no `digest_email` configured, 503 if SMTP connection refused.
 - **Published date display**: Inbox, sorting, and related articles all use `published_at || ingested_at` so email articles show their original send date, not ingestion date. Backend SQL sort uses `COALESCE(published_at, ingested_at)`.
-- **Browser cache busting**: Currently at v=26 in base.html and reader.html. ALWAYS increment when modifying static files.
+- **Gmail IMAP + SMTP integration** (Checkpoint 18): Bidirectional email integration. SMTP: `send_digest_email()` supports STARTTLS + login when `smtp_user`/`smtp_password` configured (Gmail App Password); falls back to plain SMTP (mailhog) without credentials. IMAP: `tiro/ingestion/imap.py` with `check_imap_inbox(config)` connects via `IMAP4_SSL`, fetches UNSEEN from configured label, passes raw bytes to existing `parse_eml()` → `process_article()`, marks processed as Seen, leaves failed as Unseen for retry. Duplicates detected by title+sender (same as email ingestion). CLI: `tiro setup-email` (interactive Gmail setup — address, app password, features, label), `tiro check-email` (trigger IMAP check). `tiro init` offers email setup after API key. API: `POST /api/ingest/imap` (trigger IMAP check), `GET /api/settings/email` (read config, passwords masked), `POST /api/settings/email` (update config.yaml + live config). Settings page at `/settings`: status cards (Send Digests / Receive Newsletters with green dot), action buttons (Check email now, Send test digest), Configure Email modal with form. Toast notifications for feedback. Keyboard: `b`/`Esc` back, `?` shortcuts. Nav link added to header (Settings + Stats). Config fields: `smtp_user`, `smtp_password`, `smtp_use_tls`, `imap_host`, `imap_port`, `imap_user`, `imap_password`, `imap_label`, `imap_enabled`.
+- **Browser cache busting**: Currently at v=27 in base.html and reader.html. ALWAYS increment when modifying static files.

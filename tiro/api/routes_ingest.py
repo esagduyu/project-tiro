@@ -10,6 +10,7 @@ from pydantic import BaseModel, HttpUrl
 
 from tiro.database import get_connection
 from tiro.ingestion.email import parse_eml
+from tiro.ingestion.imap import check_imap_inbox
 from tiro.ingestion.processor import process_article
 from tiro.ingestion.web import fetch_and_extract
 
@@ -227,3 +228,22 @@ async def ingest_batch_email(body: BatchEmailRequest, request: Request):
             "details": results,
         },
     }
+
+
+@router.post("/imap")
+async def ingest_imap(request: Request):
+    """Check IMAP inbox for new newsletters and ingest them."""
+    config = request.app.state.config
+
+    if not config.imap_user or not config.imap_password:
+        raise HTTPException(
+            status_code=400,
+            detail="IMAP not configured. Set imap_user and imap_password in config.yaml or use Settings.",
+        )
+
+    try:
+        result = await asyncio.to_thread(check_imap_inbox, config)
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(status_code=503, detail=str(e))
+
+    return {"success": True, "data": result}

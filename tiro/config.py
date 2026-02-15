@@ -39,6 +39,15 @@ class TiroConfig:
     digest_email: str | None = None
     smtp_host: str = "localhost"
     smtp_port: int = 1025
+    smtp_user: str | None = None
+    smtp_password: str | None = None
+    smtp_use_tls: bool = True
+    imap_host: str = "imap.gmail.com"
+    imap_port: int = 993
+    imap_user: str | None = None
+    imap_password: str | None = None
+    imap_label: str = "tiro"
+    imap_enabled: bool = False
 
     @property
     def library(self) -> Path:

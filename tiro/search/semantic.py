@@ -124,12 +124,27 @@ def find_related_articles(
         return []
 
     related = []
+    candidate_ids = []
     for cid, distance in zip(results["ids"][0], results["distances"][0]):
         rid = int(cid.replace("article_", ""))
         if rid == article_id:
             continue
         similarity = round(1 - (distance / 2), 4)
         related.append({"related_article_id": rid, "similarity_score": similarity})
+        candidate_ids.append(rid)
+
+    # Filter out ChromaDB orphans (articles deleted from SQLite but still in vectors)
+    if candidate_ids:
+        conn = get_connection(config.db_path)
+        try:
+            placeholders = ",".join("?" * len(candidate_ids))
+            rows = conn.execute(
+                f"SELECT id FROM articles WHERE id IN ({placeholders})", candidate_ids
+            ).fetchall()
+            valid_ids = {row["id"] for row in rows}
+        finally:
+            conn.close()
+        related = [r for r in related if r["related_article_id"] in valid_ids]
 
     return related[:limit]
 

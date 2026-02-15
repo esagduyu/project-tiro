@@ -28,5 +28,22 @@ decay_threshold: 0.1
 # Digest email (optional)
 # digest_email: "you@example.com"
 # digest_schedule: "08:00"
-# smtp_host: "localhost"
-# smtp_port: 1025
+
+# SMTP — for sending digest emails
+# For Gmail: smtp.gmail.com:587 with an App Password
+# For local testing: localhost:1025 with mailhog
+# smtp_host: "smtp.gmail.com"
+# smtp_port: 587
+# smtp_user: "you@gmail.com"
+# smtp_password: "your-gmail-app-password"
+# smtp_use_tls: true
+
+# IMAP — for receiving newsletters
+# Create a Gmail label (e.g. "tiro"), filter newsletters to it,
+# and Tiro will auto-ingest them.
+# imap_host: "imap.gmail.com"
+# imap_port: 993
+# imap_user: "you@gmail.com"
+# imap_password: "your-gmail-app-password"
+# imap_label: "tiro"
+# imap_enabled: true

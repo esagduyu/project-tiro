@@ -1516,7 +1516,6 @@ main {
 /* --- Nav link --- */
 
 .nav-link {
-    margin-left: auto;
     font-size: 0.85rem;
     color: var(--muted);
     text-decoration: none;
@@ -1525,6 +1524,10 @@ main {
 
 .nav-link:hover {
     color: var(--accent);
+}
+
+.nav-link-end {
+    margin-left: auto;
 }
 
 /* --- Stats page --- */
@@ -1750,5 +1753,377 @@ main {
         flex-direction: column;
         align-items: flex-start;
         gap: 0.75rem;
+    }
+}
+
+/* --- Settings page --- */
+
+.settings-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid var(--border);
+}
+
+.settings-title-row {
+    display: flex;
+    align-items: baseline;
+    gap: 1rem;
+}
+
+.settings-header h2 {
+    font-size: 1.15rem;
+    font-weight: 700;
+    color: var(--fg);
+}
+
+.settings-section {
+    margin-bottom: 2rem;
+}
+
+.settings-section-title {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--fg);
+    margin-bottom: 0.25rem;
+}
+
+.settings-section-desc {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-bottom: 1rem;
+}
+
+.settings-status-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+}
+
+.status-card {
+    padding: 1rem 1.25rem;
+    background: white;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.status-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.status-indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-ok {
+    background: #16a34a;
+}
+
+.status-off {
+    background: var(--border);
+}
+
+.status-detail {
+    font-size: 0.82rem;
+    color: var(--fg-secondary);
+    line-height: 1.5;
+}
+
+.status-detail.muted {
+    color: var(--muted);
+    font-size: 0.78rem;
+}
+
+.settings-actions {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.settings-action-btn {
+    padding: 0.5rem 1rem;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: var(--accent);
+    color: white;
+    font-size: 0.85rem;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.settings-action-btn:hover {
+    background: var(--accent-hover);
+}
+
+.settings-action-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.settings-configure {
+    margin-bottom: 2rem;
+}
+
+.settings-configure-btn {
+    padding: 0.5rem 1.25rem;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: var(--accent);
+    color: white;
+    font-size: 0.85rem;
+    font-family: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.settings-configure-btn:hover {
+    background: var(--accent-hover);
+}
+
+.settings-configure-btn-secondary {
+    background: none;
+    color: var(--muted);
+    border-color: var(--border);
+}
+
+.settings-configure-btn-secondary:hover {
+    background: var(--card-hover);
+    color: var(--fg-secondary);
+    border-color: var(--fg-secondary);
+}
+
+.settings-error {
+    color: var(--rate-dislike);
+    font-size: 0.85rem;
+}
+
+.settings-loading {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: var(--muted);
+}
+
+.settings-loading p {
+    font-size: 0.9rem;
+}
+
+/* --- Settings modal --- */
+
+.settings-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.settings-modal {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    width: 440px;
+    max-width: 90vw;
+    padding: 1.5rem;
+}
+
+.settings-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.settings-modal-header h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+}
+
+.settings-modal-close {
+    border: none;
+    background: none;
+    font-size: 1.4rem;
+    cursor: pointer;
+    color: var(--muted);
+    padding: 0 0.25rem;
+    line-height: 1;
+}
+
+.settings-modal-close:hover {
+    color: var(--fg);
+}
+
+.settings-modal-body {
+    margin-bottom: 1.25rem;
+}
+
+.settings-modal-hint {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 1rem;
+    line-height: 1.5;
+}
+
+.settings-modal-hint a {
+    color: var(--accent);
+    text-decoration: none;
+}
+
+.settings-modal-hint a:hover {
+    text-decoration: underline;
+}
+
+.settings-field {
+    margin-bottom: 0.85rem;
+}
+
+.settings-field label {
+    display: block;
+    font-size: 0.82rem;
+    font-weight: 600;
+    color: var(--fg-secondary);
+    margin-bottom: 0.3rem;
+}
+
+.settings-field input[type="email"],
+.settings-field input[type="password"],
+.settings-field input[type="text"] {
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.88rem;
+    font-family: inherit;
+    color: var(--fg);
+    outline: none;
+    transition: border-color 0.15s;
+}
+
+.settings-field input:focus {
+    border-color: var(--accent);
+}
+
+.settings-checkboxes {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.settings-checkbox {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.85rem;
+    color: var(--fg-secondary);
+    font-weight: 400;
+    cursor: pointer;
+}
+
+.settings-checkbox input[type="checkbox"] {
+    accent-color: var(--accent);
+}
+
+.settings-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.settings-cancel-btn {
+    padding: 0.45rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    font-size: 0.85rem;
+    font-family: inherit;
+    color: var(--fg-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.settings-cancel-btn:hover {
+    background: var(--card-hover);
+    border-color: var(--fg-secondary);
+}
+
+.settings-save-btn {
+    padding: 0.45rem 1rem;
+    border: 1px solid var(--accent);
+    border-radius: 6px;
+    background: var(--accent);
+    font-size: 0.85rem;
+    font-family: inherit;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.settings-save-btn:hover {
+    background: var(--accent-hover);
+}
+
+.settings-save-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+/* --- Settings toast --- */
+
+.settings-toast {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    padding: 0.65rem 1.25rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    z-index: 300;
+    pointer-events: none;
+}
+
+.settings-toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+}
+
+.settings-toast-success {
+    background: #16a34a;
+}
+
+.settings-toast-error {
+    background: #dc2626;
+}
+
+.settings-toast-warning {
+    background: #d97706;
+}
+
+.settings-toast-info {
+    background: var(--fg-secondary);
+}
+
+@media (max-width: 640px) {
+    .settings-status-grid {
+        grid-template-columns: 1fr;
     }
 }

@@ -70,6 +70,12 @@ def cmd_init(args):
     else:
         print("Skipped — set ANTHROPIC_API_KEY env var or add it to config.yaml later.")
 
+    # Offer email setup
+    print()
+    setup_email = input("Set up Gmail email integration? (send digests / receive newsletters) [y/N] ").strip()
+    if setup_email.lower() in ("y", "yes"):
+        _interactive_email_setup(root_config)
+
     print(f"\nTiro library initialized at {config.library}")
     print(f"Start the server with: uv run tiro run")
 
@@ -121,6 +127,118 @@ def cmd_export(args):
 
     shutil.move(str(zip_path), str(output))
     print(f"Library exported to {output}")
+
+
+def _interactive_email_setup(config_path: Path):
+    """Interactive email setup flow — shared by cmd_init and cmd_setup_email."""
+    print()
+    print("Gmail Email Integration")
+    print("=" * 40)
+    print()
+    print("Tiro can send digest emails and receive newsletters via Gmail.")
+    print("You'll need a Gmail App Password (not your regular password).")
+    print("Create one at: https://myaccount.google.com/apppasswords")
+    print()
+
+    # What features?
+    print("What would you like to set up?")
+    print("  1. Send digest emails only")
+    print("  2. Receive newsletters via IMAP only")
+    print("  3. Both send and receive")
+    choice = input("Choice [3]: ").strip() or "3"
+
+    want_send = choice in ("1", "3")
+    want_receive = choice in ("2", "3")
+
+    # Gmail address
+    gmail = input("Gmail address: ").strip()
+    if not gmail:
+        print("Skipped — no email address provided.")
+        return
+
+    # App password
+    app_password = input("Gmail App Password (16 chars, no spaces): ").strip()
+    if not app_password:
+        print("Skipped — no app password provided.")
+        return
+
+    config_data = yaml.safe_load(config_path.read_text()) or {}
+
+    if want_send:
+        config_data["smtp_host"] = "smtp.gmail.com"
+        config_data["smtp_port"] = 587
+        config_data["smtp_user"] = gmail
+        config_data["smtp_password"] = app_password
+        config_data["smtp_use_tls"] = True
+        config_data["digest_email"] = gmail
+        print(f"  SMTP configured: smtp.gmail.com:587 (TLS)")
+
+    if want_receive:
+        label = input(f"Gmail label to monitor [tiro]: ").strip() or "tiro"
+        config_data["imap_host"] = "imap.gmail.com"
+        config_data["imap_port"] = 993
+        config_data["imap_user"] = gmail
+        config_data["imap_password"] = app_password
+        config_data["imap_label"] = label
+        config_data["imap_enabled"] = True
+        print(f"  IMAP configured: imap.gmail.com:993, label='{label}'")
+
+    config_path.write_text(yaml.dump(config_data, default_flow_style=False))
+    print(f"\nEmail settings saved to {config_path}")
+
+    if want_receive:
+        print(f"\nTo receive newsletters:")
+        print(f"  1. Create a Gmail label called '{config_data.get('imap_label', 'tiro')}'")
+        print(f"  2. Set up a Gmail filter to auto-label forwarded newsletters")
+        print(f"  3. Run: uv run tiro check-email")
+
+
+def cmd_setup_email(args):
+    """Interactive Gmail email setup."""
+    config_path = Path(args.config)
+    if not config_path.exists():
+        print(f"No config file found at {config_path}. Run 'tiro init' first.")
+        sys.exit(1)
+    _interactive_email_setup(config_path)
+
+
+def cmd_check_email(args):
+    """Check IMAP inbox for new newsletters and ingest them."""
+    from tiro.config import load_config
+    from tiro.ingestion.imap import check_imap_inbox
+
+    config = load_config(args.config)
+
+    if not config.imap_user or not config.imap_password:
+        print("IMAP not configured. Run: uv run tiro setup-email")
+        sys.exit(1)
+
+    print(f"Checking {config.imap_user} / label '{config.imap_label}'...")
+
+    try:
+        result = check_imap_inbox(config)
+    except (ValueError, RuntimeError) as e:
+        print(f"Error: {e}")
+        sys.exit(1)
+
+    if result["fetched"] == 0:
+        print("No new messages.")
+        return
+
+    print(f"\nFetched: {result['fetched']}")
+    print(f"Processed: {result['processed']}")
+    print(f"Skipped (duplicates): {result['skipped']}")
+    print(f"Failed: {result['failed']}")
+
+    if result["articles"]:
+        print("\nIngested articles:")
+        for a in result["articles"]:
+            print(f"  [{a['id']}] {a['title']}")
+
+    if result["errors"]:
+        print("\nErrors:")
+        for err in result["errors"]:
+            print(f"  - {err}")
 
 
 def cmd_import_emails(args):
@@ -207,6 +325,9 @@ def main():
     import_parser = subparsers.add_parser("import-emails", help="Bulk import .eml files")
     import_parser.add_argument("directory", type=Path, help="Directory containing .eml files")
 
+    subparsers.add_parser("setup-email", help="Configure Gmail email integration")
+    subparsers.add_parser("check-email", help="Check IMAP inbox for new newsletters")
+
     args = parser.parse_args()
 
     if args.command == "init":
@@ -217,6 +338,10 @@ def main():
         cmd_export(args)
     elif args.command == "import-emails":
         cmd_import_emails(args)
+    elif args.command == "setup-email":
+        cmd_setup_email(args)
+    elif args.command == "check-email":
+        cmd_check_email(args)
     else:
         parser.print_help()
         sys.exit(1)

@@ -1,0 +1,386 @@
+{% extends "base.html" %}
+
+{% block title %}Tiro — Settings{% endblock %}
+
+{% block content %}
+<div class="settings-header">
+    <div class="settings-title-row">
+        <h2>Settings</h2>
+        <a href="/" class="back-link">&larr; Back to inbox</a>
+    </div>
+</div>
+
+<!-- Email Status -->
+<div class="settings-section">
+    <h3 class="settings-section-title">Email Integration</h3>
+    <p class="settings-section-desc">Send digest emails and receive newsletters via Gmail.</p>
+
+    <div id="email-status" class="settings-status">
+        <div class="settings-loading">
+            <div class="digest-spinner"></div>
+            <p>Loading settings...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Email Actions -->
+<div id="email-actions" class="settings-actions" style="display: none;">
+    <button id="btn-check-email" class="settings-action-btn" style="display: none;">
+        Check email now
+    </button>
+    <button id="btn-send-digest" class="settings-action-btn" style="display: none;">
+        Send test digest
+    </button>
+</div>
+
+<!-- Configure Email Modal Trigger -->
+<div class="settings-configure">
+    <button id="btn-configure-email" class="settings-configure-btn">Configure Email</button>
+</div>
+
+<script>
+(function() {
+    let emailData = null;
+
+    async function loadEmailSettings() {
+        const statusEl = document.getElementById('email-status');
+        const actionsEl = document.getElementById('email-actions');
+
+        try {
+            const res = await fetch('/api/settings/email');
+            const json = await res.json();
+            if (!json.success) throw new Error('API error');
+            emailData = json.data;
+            renderStatus(emailData);
+        } catch (err) {
+            statusEl.innerHTML = '<p class="settings-error">Failed to load settings.</p>';
+        }
+    }
+
+    function renderStatus(data) {
+        const statusEl = document.getElementById('email-status');
+        const actionsEl = document.getElementById('email-actions');
+        const btnCheck = document.getElementById('btn-check-email');
+        const btnSend = document.getElementById('btn-send-digest');
+
+        let html = '<div class="settings-status-grid">';
+
+        // SMTP status
+        html += '<div class="status-card">';
+        html += '<div class="status-card-header">';
+        html += '<span class="status-indicator ' + (data.smtp_configured ? 'status-ok' : 'status-off') + '"></span>';
+        html += '<strong>Send Digests</strong>';
+        html += '</div>';
+        if (data.smtp_configured) {
+            html += '<div class="status-detail">' + escapeHtml(data.smtp_user) + '</div>';
+            html += '<div class="status-detail muted">' + escapeHtml(data.smtp_host) + ':' + data.smtp_port + '</div>';
+        } else {
+            html += '<div class="status-detail muted">Not configured</div>';
+        }
+        html += '</div>';
+
+        // IMAP status
+        html += '<div class="status-card">';
+        html += '<div class="status-card-header">';
+        html += '<span class="status-indicator ' + (data.imap_configured ? 'status-ok' : 'status-off') + '"></span>';
+        html += '<strong>Receive Newsletters</strong>';
+        html += '</div>';
+        if (data.imap_configured) {
+            html += '<div class="status-detail">' + escapeHtml(data.imap_user) + '</div>';
+            html += '<div class="status-detail muted">Label: ' + escapeHtml(data.imap_label) + '</div>';
+        } else {
+            html += '<div class="status-detail muted">Not configured</div>';
+        }
+        html += '</div>';
+
+        html += '</div>';
+        statusEl.innerHTML = html;
+
+        // Show action buttons
+        if (data.smtp_configured || data.imap_configured) {
+            actionsEl.style.display = '';
+            if (data.imap_configured) btnCheck.style.display = '';
+            if (data.smtp_configured) btnSend.style.display = '';
+        }
+
+        // Update configure button text
+        var configBtn = document.getElementById('btn-configure-email');
+        if (data.smtp_configured || data.imap_configured) {
+            configBtn.textContent = 'Reconfigure Email';
+            configBtn.className = 'settings-configure-btn settings-configure-btn-secondary';
+        }
+    }
+
+    function escapeHtml(s) {
+        if (!s) return '';
+        var div = document.createElement('div');
+        div.textContent = s;
+        return div.innerHTML;
+    }
+
+    // --- Check Email ---
+    document.getElementById('btn-check-email').addEventListener('click', async function() {
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Checking...';
+
+        try {
+            var res = await fetch('/api/ingest/imap', { method: 'POST' });
+            var json = await res.json();
+
+            if (!res.ok) {
+                showToast(json.detail || 'Failed to check email', 'error');
+                return;
+            }
+
+            var d = json.data;
+            if (d.fetched === 0) {
+                showToast('No new messages', 'info');
+            } else {
+                showToast(d.processed + ' ingested, ' + d.skipped + ' skipped, ' + d.failed + ' failed', d.failed > 0 ? 'warning' : 'success');
+            }
+        } catch (err) {
+            showToast('Connection error', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Check email now';
+        }
+    });
+
+    // --- Send Test Digest ---
+    document.getElementById('btn-send-digest').addEventListener('click', async function() {
+        var btn = this;
+        btn.disabled = true;
+        btn.textContent = 'Sending...';
+
+        try {
+            var res = await fetch('/api/digest/send', { method: 'POST' });
+            var json = await res.json();
+
+            if (!res.ok) {
+                showToast(json.detail || 'Failed to send digest', 'error');
+                return;
+            }
+
+            showToast('Digest sent to ' + json.data.sent_to, 'success');
+        } catch (err) {
+            showToast('Connection error', 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = 'Send test digest';
+        }
+    });
+
+    // --- Configure Email Modal ---
+    document.getElementById('btn-configure-email').addEventListener('click', showConfigModal);
+
+    function showConfigModal() {
+        var existing = document.getElementById('settings-modal-overlay');
+        if (existing) existing.remove();
+
+        var prefillAddress = (emailData && emailData.smtp_user) || (emailData && emailData.imap_user) || '';
+        var prefillLabel = (emailData && emailData.imap_label) || 'tiro';
+        var smtpChecked = emailData ? emailData.smtp_configured : true;
+        var imapChecked = emailData ? emailData.imap_configured : true;
+
+        var overlay = document.createElement('div');
+        overlay.id = 'settings-modal-overlay';
+        overlay.className = 'settings-modal-overlay';
+        overlay.innerHTML =
+            '<div class="settings-modal">' +
+                '<div class="settings-modal-header">' +
+                    '<h3>Configure Gmail Integration</h3>' +
+                    '<button class="settings-modal-close" id="modal-close">&times;</button>' +
+                '</div>' +
+                '<div class="settings-modal-body">' +
+                    '<p class="settings-modal-hint">Requires a <a href="https://myaccount.google.com/apppasswords" target="_blank">Gmail App Password</a> (not your regular password).</p>' +
+                    '<div class="settings-field">' +
+                        '<label>Gmail address</label>' +
+                        '<input type="email" id="cfg-gmail" placeholder="you@gmail.com" value="' + escapeHtml(prefillAddress) + '">' +
+                    '</div>' +
+                    '<div class="settings-field">' +
+                        '<label>App Password</label>' +
+                        '<input type="password" id="cfg-password" placeholder="16-character app password">' +
+                    '</div>' +
+                    '<div class="settings-field">' +
+                        '<label>Features</label>' +
+                        '<div class="settings-checkboxes">' +
+                            '<label class="settings-checkbox"><input type="checkbox" id="cfg-send" ' + (smtpChecked ? 'checked' : '') + '> Send digest emails</label>' +
+                            '<label class="settings-checkbox"><input type="checkbox" id="cfg-receive" ' + (imapChecked ? 'checked' : '') + '> Receive newsletters (IMAP)</label>' +
+                        '</div>' +
+                    '</div>' +
+                    '<div class="settings-field" id="cfg-label-field">' +
+                        '<label>Gmail label to monitor</label>' +
+                        '<input type="text" id="cfg-label" placeholder="tiro" value="' + escapeHtml(prefillLabel) + '">' +
+                    '</div>' +
+                '</div>' +
+                '<div class="settings-modal-actions">' +
+                    '<button class="settings-cancel-btn" id="modal-cancel">Cancel</button>' +
+                    '<button class="settings-save-btn" id="modal-save">Save</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+
+        // Toggle label field visibility
+        var receiveCheckbox = document.getElementById('cfg-receive');
+        var labelField = document.getElementById('cfg-label-field');
+        function toggleLabel() {
+            labelField.style.display = receiveCheckbox.checked ? '' : 'none';
+        }
+        receiveCheckbox.addEventListener('change', toggleLabel);
+        toggleLabel();
+
+        // Close handlers
+        document.getElementById('modal-close').addEventListener('click', function() { overlay.remove(); });
+        document.getElementById('modal-cancel').addEventListener('click', function() { overlay.remove(); });
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.addEventListener('keydown', function handler(e) {
+            if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', handler); }
+        });
+
+        // Save handler
+        document.getElementById('modal-save').addEventListener('click', async function() {
+            var gmail = document.getElementById('cfg-gmail').value.trim();
+            var password = document.getElementById('cfg-password').value.trim();
+            var enableSend = document.getElementById('cfg-send').checked;
+            var enableReceive = document.getElementById('cfg-receive').checked;
+            var label = document.getElementById('cfg-label').value.trim() || 'tiro';
+
+            if (!gmail || !password) {
+                showToast('Gmail address and app password are required', 'error');
+                return;
+            }
+
+            if (!enableSend && !enableReceive) {
+                showToast('Select at least one feature', 'error');
+                return;
+            }
+
+            var saveBtn = this;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                var res = await fetch('/api/settings/email', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        gmail_address: gmail,
+                        app_password: password,
+                        enable_send: enableSend,
+                        enable_receive: enableReceive,
+                        imap_label: label,
+                    }),
+                });
+                var json = await res.json();
+
+                if (!res.ok) {
+                    showToast(json.detail || 'Failed to save', 'error');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save';
+                    return;
+                }
+
+                overlay.remove();
+                showToast('Email settings saved', 'success');
+                loadEmailSettings();
+            } catch (err) {
+                showToast('Connection error', 'error');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            }
+        });
+    }
+
+    // --- Toast notifications ---
+    function showToast(message, type) {
+        var existing = document.querySelector('.settings-toast');
+        if (existing) existing.remove();
+
+        var toast = document.createElement('div');
+        toast.className = 'settings-toast settings-toast-' + (type || 'info');
+        toast.textContent = message;
+        document.body.appendChild(toast);
+
+        setTimeout(function() { toast.classList.add('show'); }, 10);
+        setTimeout(function() {
+            toast.classList.remove('show');
+            setTimeout(function() { toast.remove(); }, 300);
+        }, 3500);
+    }
+
+    // --- Keyboard navigation ---
+    document.addEventListener('keydown', function(e) {
+        var tag = document.activeElement.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+            if (e.key === 'Escape') {
+                document.activeElement.blur();
+                e.preventDefault();
+            }
+            return;
+        }
+
+        // Close modal on Escape (handled by modal itself)
+        var modal = document.getElementById('settings-modal-overlay');
+        if (modal) return;
+
+        var overlay = document.getElementById('shortcuts-overlay');
+        if (overlay && overlay.style.display !== 'none') {
+            if (e.key === '?' || e.key === 'Escape') {
+                overlay.style.display = 'none';
+                e.preventDefault();
+            }
+            return;
+        }
+
+        switch (e.key) {
+            case 'b':
+            case 'Escape':
+                e.preventDefault();
+                window.location.href = '/';
+                break;
+            case '?':
+                e.preventDefault();
+                showSettingsShortcuts();
+                break;
+        }
+    });
+
+    function showSettingsShortcuts() {
+        var overlay = document.getElementById('shortcuts-overlay');
+        var body = document.getElementById('shortcuts-body');
+        if (!overlay || !body) return;
+
+        var shortcuts = [
+            { section: 'Navigation' },
+            { keys: ['b', 'Esc'], desc: 'Back to inbox' },
+            { section: 'General' },
+            { keys: ['?'], desc: 'Show this help' },
+        ];
+
+        body.innerHTML = shortcuts.map(function(item) {
+            if (item.section) {
+                return '<div class="shortcut-section">' + item.section + '</div>';
+            }
+            var keys = item.keys.map(function(k) { return '<kbd>' + k + '</kbd>'; }).join(' / ');
+            return '<div class="shortcut-row"><span class="shortcut-keys">' + keys + '</span><span class="shortcut-desc">' + item.desc + '</span></div>';
+        }).join('');
+
+        overlay.style.display = 'flex';
+    }
+
+    // Close shortcuts overlay
+    var closeBtn = document.getElementById('shortcuts-close');
+    if (closeBtn) closeBtn.addEventListener('click', function() {
+        document.getElementById('shortcuts-overlay').style.display = 'none';
+    });
+    var overlayEl = document.getElementById('shortcuts-overlay');
+    if (overlayEl) overlayEl.addEventListener('click', function(e) {
+        if (e.target === overlayEl) overlayEl.style.display = 'none';
+    });
+
+    // Load on init
+    loadEmailSettings();
+})();
+</script>
+{% endblock %}
