@@ -1633,6 +1633,32 @@ main {
     font-style: italic;
 }
 
+/* --- Export button --- */
+
+.export-btn {
+    padding: 0.35rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: white;
+    font-size: 0.8rem;
+    font-family: inherit;
+    color: var(--fg-secondary);
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.export-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: #f0f4ff;
+}
+
+.stats-controls {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
 @media (max-width: 640px) {
     .stats-summary {
         grid-template-columns: repeat(3, 1fr);

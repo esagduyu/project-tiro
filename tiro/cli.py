@@ -44,6 +44,28 @@ def cmd_run(args):
     uvicorn.run(app, host=config.host, port=config.port)
 
 
+def cmd_export(args):
+    """Export the library as a zip bundle."""
+    import shutil
+
+    from tiro.config import load_config
+    from tiro.export import export_library
+
+    config = load_config(args.config)
+    output = Path(args.output)
+
+    zip_path = export_library(
+        config,
+        tag=args.tag,
+        source_id=args.source_id,
+        rating_min=args.rating_min,
+        date_from=args.date_from,
+    )
+
+    shutil.move(str(zip_path), str(output))
+    print(f"Library exported to {output}")
+
+
 def main():
     logging.basicConfig(
         level=logging.INFO,
@@ -57,12 +79,21 @@ def main():
     subparsers.add_parser("init", help="Initialize a new Tiro library")
     subparsers.add_parser("run", help="Start the Tiro server")
 
+    export_parser = subparsers.add_parser("export", help="Export library as a zip bundle")
+    export_parser.add_argument("--output", "-o", default="tiro-export.zip", help="Output zip file path")
+    export_parser.add_argument("--tag", help="Filter by tag name")
+    export_parser.add_argument("--source-id", type=int, help="Filter by source ID")
+    export_parser.add_argument("--rating-min", type=int, help="Minimum rating (-1, 1, or 2)")
+    export_parser.add_argument("--date-from", help="Filter articles ingested after this date (YYYY-MM-DD)")
+
     args = parser.parse_args()
 
     if args.command == "init":
         cmd_init(args)
     elif args.command == "run":
         cmd_run(args)
+    elif args.command == "export":
+        cmd_export(args)
     else:
         parser.print_help()
         sys.exit(1)

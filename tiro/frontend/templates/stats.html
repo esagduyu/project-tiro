@@ -14,6 +14,7 @@
             <option value="month" selected>Last 30 days</option>
             <option value="all">All time</option>
         </select>
+        <button id="export-btn" class="export-btn" title="Export library as zip">Export</button>
     </div>
 </div>
 
@@ -346,6 +347,11 @@
     periodSelect.addEventListener('change', loadStats);
     loadStats();
 
+    // --- Export ---
+    document.getElementById('export-btn').addEventListener('click', function() {
+        window.location.href = '/api/export';
+    });
+
     // --- Keyboard navigation ---
     document.addEventListener('keydown', function(e) {
         const tag = document.activeElement.tagName;
@@ -372,6 +378,10 @@
                 e.preventDefault();
                 window.location.href = '/';
                 break;
+            case 'e':
+                e.preventDefault();
+                window.location.href = '/api/export';
+                break;
             case '?':
                 e.preventDefault();
                 showStatsShortcuts();
@@ -387,6 +397,8 @@
         const shortcuts = [
             { section: 'Navigation' },
             { keys: ['b', 'Esc'], desc: 'Back to inbox' },
+            { section: 'Actions' },
+            { keys: ['e'], desc: 'Export library' },
             { section: 'General' },
             { keys: ['?'], desc: 'Show this help' },
         ];
