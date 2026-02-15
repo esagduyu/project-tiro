@@ -513,6 +513,10 @@ function setupReaderKeyboard(articleId) {
                 e.preventDefault();
                 readerRunAnalysis(articleId);
                 break;
+            case "g":
+                e.preventDefault();
+                window.location.href = "/stats";
+                break;
             case "?":
                 e.preventDefault();
                 if (typeof showShortcuts === "function") showShortcuts("reader");

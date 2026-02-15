@@ -345,6 +345,72 @@
 
     periodSelect.addEventListener('change', loadStats);
     loadStats();
+
+    // --- Keyboard navigation ---
+    document.addEventListener('keydown', function(e) {
+        const tag = document.activeElement.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+            if (e.key === 'Escape') {
+                document.activeElement.blur();
+                e.preventDefault();
+            }
+            return;
+        }
+
+        const overlay = document.getElementById('shortcuts-overlay');
+        if (overlay && overlay.style.display !== 'none') {
+            if (e.key === '?' || e.key === 'Escape') {
+                overlay.style.display = 'none';
+                e.preventDefault();
+            }
+            return;
+        }
+
+        switch (e.key) {
+            case 'b':
+            case 'Escape':
+                e.preventDefault();
+                window.location.href = '/';
+                break;
+            case '?':
+                e.preventDefault();
+                showStatsShortcuts();
+                break;
+        }
+    });
+
+    function showStatsShortcuts() {
+        const overlay = document.getElementById('shortcuts-overlay');
+        const body = document.getElementById('shortcuts-body');
+        if (!overlay || !body) return;
+
+        const shortcuts = [
+            { section: 'Navigation' },
+            { keys: ['b', 'Esc'], desc: 'Back to inbox' },
+            { section: 'General' },
+            { keys: ['?'], desc: 'Show this help' },
+        ];
+
+        body.innerHTML = shortcuts.map(function(item) {
+            if (item.section) {
+                return '<div class="shortcut-section">' + item.section + '</div>';
+            }
+            var keys = item.keys.map(function(k) { return '<kbd>' + k + '</kbd>'; }).join(' / ');
+            return '<div class="shortcut-row"><span class="shortcut-keys">' + keys + '</span><span class="shortcut-desc">' + item.desc + '</span></div>';
+        }).join('');
+
+        overlay.style.display = 'flex';
+    }
+
+    // Close shortcuts overlay
+    var closeBtn = document.getElementById('shortcuts-close');
+    if (closeBtn) closeBtn.addEventListener('click', function() {
+        document.getElementById('shortcuts-overlay').style.display = 'none';
+    });
+    var overlayEl = document.getElementById('shortcuts-overlay');
+    if (overlayEl) overlayEl.addEventListener('click', function(e) {
+        if (e.target === overlayEl) overlayEl.style.display = 'none';
+    });
 })();
 </script>
 {% endblock %}

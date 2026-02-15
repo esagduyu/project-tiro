@@ -740,6 +740,10 @@ function handleInboxKeydown(e) {
                 if (btn && !btn.disabled) btn.click();
             }
             break;
+        case "g":
+            e.preventDefault();
+            window.location.href = "/stats";
+            break;
         case "?":
             e.preventDefault();
             showShortcuts("inbox");
@@ -825,6 +829,7 @@ const INBOX_SHORTCUTS = [
     { keys: ["/"], desc: "Focus search bar" },
     { keys: ["d"], desc: "Switch to digest view" },
     { keys: ["a"], desc: "Switch to articles view" },
+    { keys: ["g"], desc: "Go to reading stats" },
     { section: "Actions" },
     { keys: ["s"], desc: "Toggle VIP on selected source" },
     { keys: ["1"], desc: "Rate dislike" },
@@ -840,6 +845,7 @@ const INBOX_SHORTCUTS = [
 const READER_SHORTCUTS = [
     { section: "Navigation" },
     { keys: ["b", "Esc"], desc: "Back to inbox" },
+    { keys: ["g"], desc: "Go to reading stats" },
     { section: "Actions" },
     { keys: ["s"], desc: "Toggle VIP on source" },
     { keys: ["1"], desc: "Rate dislike" },
