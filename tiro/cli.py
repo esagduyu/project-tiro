@@ -11,9 +11,23 @@ import yaml
 
 def cmd_init(args):
     """Initialize a new Tiro library."""
+    import shutil
+
     from tiro.config import load_config
     from tiro.database import init_db
     from tiro.vectorstore import init_vectorstore
+
+    # Generate config.yaml from example template if it doesn't exist
+    root_config = Path(args.config)
+    if not root_config.exists():
+        example = Path(__file__).resolve().parent.parent / "config.example.yaml"
+        if example.exists():
+            shutil.copy(example, root_config)
+            print(f"Created {root_config} from template")
+        else:
+            # Fallback: write minimal config
+            root_config.write_text(yaml.dump({"library_path": "./tiro-library"}, default_flow_style=False))
+            print(f"Created {root_config}")
 
     config = load_config(args.config)
 
@@ -23,19 +37,9 @@ def cmd_init(args):
     init_db(config.db_path)
     init_vectorstore(config.chroma_dir)
 
-    # Write library config.yaml (just library path)
-    lib_config = config.library / "config.yaml"
-    if not lib_config.exists():
-        lib_config.write_text(
-            yaml.dump({"library_path": str(config.library)}, default_flow_style=False)
-        )
-
-    # Prompt for API key, save to project-root config.yaml
-    root_config = Path(args.config)
+    # Prompt for API key
     env_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    config_key = ""
-    if root_config.exists():
-        config_key = (yaml.safe_load(root_config.read_text()) or {}).get("anthropic_api_key", "")
+    config_key = (yaml.safe_load(root_config.read_text()) or {}).get("anthropic_api_key", "")
 
     print()
     print("Tiro uses the Anthropic API for AI features (digests, analysis, preferences).")
@@ -59,11 +63,9 @@ def cmd_init(args):
         api_key = input("Anthropic API key (or press Enter to skip): ").strip()
 
     if api_key:
-        existing = {}
-        if root_config.exists():
-            existing = yaml.safe_load(root_config.read_text()) or {}
-        existing["anthropic_api_key"] = api_key
-        root_config.write_text(yaml.dump(existing, default_flow_style=False))
+        config_data = yaml.safe_load(root_config.read_text()) or {}
+        config_data["anthropic_api_key"] = api_key
+        root_config.write_text(yaml.dump(config_data, default_flow_style=False))
         print(f"API key saved to {root_config}")
     else:
         print("Skipped — set ANTHROPIC_API_KEY env var or add it to config.yaml later.")

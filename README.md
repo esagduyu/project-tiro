@@ -27,10 +27,9 @@ Named after Cicero's freedman who preserved and organized his master's works for
 ```bash
 git clone https://github.com/esagduyu/project-tiro.git
 cd project-tiro
-cp config.example.yaml config.yaml   # create your local config
-uv sync                               # creates venv + installs all dependencies
-uv run tiro init                      # creates library, prompts for API key
-uv run tiro run                       # starts server at localhost:8000, opens browser
+uv sync                       # creates venv + installs all dependencies
+uv run tiro init              # creates config, library, prompts for API key
+uv run tiro run               # starts server at localhost:8000, opens browser
 ```
 
 That's it. Save your first article by pasting a URL into the inbox.
