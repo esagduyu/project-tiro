@@ -95,8 +95,8 @@ lsof -ti :8000 | xargs kill -9
 
 ## Current Status
 
-**Working on:** Checkpoint 16 — Packaging
-**Completed:** Checkpoints 1–15
+**Working on:** Checkpoint 17 — Digest email
+**Completed:** Checkpoints 1–16
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -116,7 +116,7 @@ Checkpoint tracker:
 [x] 13. Reading stats
 [x] 14. Export works
 [x] 15. Chrome extension
-[ ] 16. Packaging
+[x] 16. Packaging
 [ ] 17. Digest email
 -->
 
@@ -178,5 +178,6 @@ Playwright MCP is configured at user scope. Use it to visually verify UI changes
 - **Reading stats** (Checkpoint 13): `tiro/stats.py` provides `update_stat(config, field, increment)` and `get_stats(config, period)`. Stats updates hooked into `process_article()` (articles_saved), `mark_read()` (articles_read + reading_time), `rate_article()` (articles_rated). `GET /api/stats?period=week|month|all` returns daily_counts, totals, top_tags, top_sources (with love/like/dislike breakdowns), reading_streak. Stats page at `/stats` uses Chart.js (CDN) with 4 charts: saved bar, read-vs-saved line, top topics horizontal bar, sources engagement stacked bar. Summary cards show totals + streak. Nav link "Stats" in header. Charts stacked vertically (single-column). Love color is purple (#7c3aed) to distinguish from red dislike.
 - **Export** (Checkpoint 14): `tiro/export.py` generates a zip bundle with `articles/*.md` files (frontmatter intact), `metadata.json` (articles, sources, tags, entities, relations, junction tables), and `README.md`. Filterable by tag, source_id, rating_min, date_from. `GET /api/export` streams the zip via `FileResponse` with `BackgroundTask` cleanup. `tiro export --output ./file.zip --tag ai` CLI command available. Export button on stats page header (keyboard shortcut `e`). `markdown_path` in DB stores just the filename — use `config.articles_dir / markdown_path` to resolve, NOT `config.library / markdown_path`.
 - **Chrome extension** (Checkpoint 15): `extension/` directory with Manifest V3. Popup shows current page title/URL, "Save to Tiro" button, optional VIP toggle. POSTs to `localhost:8000/api/ingest/url`. Shows success with article title + source + "Open in Tiro" link, or error if server not running. Icons: blue circle with white "T" (16/48/128px, generated with Pillow). `process_article()` now returns `source_id` in its response dict so VIP toggle works. Load as unpacked extension via `chrome://extensions`. On popup open, checks `GET /api/ingest/check?url=...` — if already saved, shows "Already in your library" with title, time-ago, and link. `POST /api/ingest/url` 409 duplicate response now returns structured JSON (`{error: "already_saved", data: {id, title, source, ingested_at}}`) instead of plain HTTPException detail string.
+- **Packaging** (Checkpoint 16): pyproject.toml has full metadata (author, classifiers, URLs), MIT LICENSE file, comprehensive README with features/architecture/CLI/extension/MCP/keyboard docs. CLI enhanced: `tiro init` prompts for API key if not in env, `tiro run` auto-opens browser (use `--no-browser` to skip), `tiro import-emails ./dir/` for bulk .eml import. All 4 commands: init, run, export, import-emails.
 - **Export** UI: Red button with white text on stats page. Clicking opens a confirmation dialog explaining what the zip contains (markdown files, metadata.json, README). Export only triggers after user clicks "Download". Dialog dismissible via Cancel, Esc, or clicking overlay.
 - **Browser cache busting**: Currently at v=25 in base.html and reader.html. ALWAYS increment when modifying static files.

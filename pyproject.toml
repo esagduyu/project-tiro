@@ -5,6 +5,21 @@ description = "A local-first, open-source reading OS for the AI age"
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
+authors = [
+    { name = "Ege Beyaztas" },
+]
+keywords = ["reading", "ai", "local-first", "markdown", "claude", "opus"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: End Users/Desktop",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Text Processing",
+]
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.34.0",
@@ -21,6 +36,10 @@ dependencies = [
     "python-multipart>=0.0.20",
     "mcp>=1.25",
 ]
+
+[project.urls]
+Homepage = "https://github.com/esagduyu/project-tiro"
+Repository = "https://github.com/esagduyu/project-tiro"
 
 [project.scripts]
 tiro = "tiro.cli:main"
