@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 
 from tiro.config import TiroConfig, load_config
 from tiro.database import init_db
+from tiro.decay import recalculate_decay
 from tiro.vectorstore import init_vectorstore
 
 logger = logging.getLogger(__name__)
@@ -32,6 +33,9 @@ async def lifespan(app: FastAPI):
 
     # Initialize ChromaDB with configured embedding model
     init_vectorstore(config.chroma_dir, config.default_embedding_model)
+
+    # Recalculate content decay weights
+    recalculate_decay(config)
 
     logger.info("Tiro is ready — library at %s", config.library)
     yield
@@ -66,6 +70,7 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     from tiro.api.routes_ingest import router as ingest_router
     from tiro.api.routes_search import router as search_router
     from tiro.api.routes_classify import router as classify_router
+    from tiro.api.routes_decay import router as decay_router
     from tiro.api.routes_sources import router as sources_router
 
     app.include_router(ingest_router)
@@ -74,6 +79,7 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     app.include_router(digest_router)
     app.include_router(search_router)
     app.include_router(classify_router)
+    app.include_router(decay_router)
 
     # Static files and templates
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="static")

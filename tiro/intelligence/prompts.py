@@ -33,8 +33,10 @@ def daily_digest_prompt(
         vip_marker = " [VIP]" if a["is_vip"] else ""
         tags = ", ".join(a["tags"]) if a["tags"] else "none"
         entities = ", ".join(a["entities"]) if a["entities"] else "none"
+        weight = a.get("relevance_weight", 1.0)
+        weight_note = f" | Relevance: {weight:.2f}" if weight < 1.0 else ""
         article_lines.append(
-            f"- ID: {a['id']} | Title: \"{a['title']}\" | Source: {a['source']}{vip_marker}\n"
+            f"- ID: {a['id']} | Title: \"{a['title']}\" | Source: {a['source']}{vip_marker}{weight_note}\n"
             f"  Tags: {tags}\n"
             f"  Entities: {entities}\n"
             f"  Published: {a['published_date'] or 'unknown'}\n"
@@ -60,6 +62,7 @@ Order all articles by significance to this reader. Consider:
 - VIP sources should be weighted higher
 - User's demonstrated interests from ratings
 - Timeliness and impact of the content
+- Articles with lower relevance scores (< 1.0) have decayed due to lack of engagement — rank them lower
 For each article, include a 1-sentence reason for its position.
 
 ### 2. Grouped by Topic

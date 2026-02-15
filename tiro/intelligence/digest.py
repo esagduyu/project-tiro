@@ -39,7 +39,7 @@ def _gather_articles(config: TiroConfig) -> tuple[list[dict], list[str], list[di
         rows = conn.execute("""
             SELECT
                 a.id, a.title, a.summary, a.published_at, a.ingested_at,
-                a.is_read, a.rating,
+                a.is_read, a.rating, a.relevance_weight,
                 s.name AS source_name, s.is_vip
             FROM articles a
             LEFT JOIN sources s ON a.source_id = s.id
@@ -88,6 +88,7 @@ def _gather_articles(config: TiroConfig) -> tuple[list[dict], list[str], list[di
                 "entities": entities_by_article.get(aid, []),
                 "summary": row["summary"] or "",
                 "published_date": row["published_at"] or row["ingested_at"],
+                "relevance_weight": row["relevance_weight"] or 1.0,
             })
 
             # Collect rated articles for context

@@ -88,11 +88,12 @@ lsof -ti :8000 | xargs kill -9
 | GET | /api/articles/{id}/related | Get related articles with connection notes |
 | POST | /api/recompute-relations | Retroactively compute relations for all articles |
 | POST | /api/classify | Classify unrated articles into tiers using Opus 4.6 |
+| POST | /api/decay/recalculate | Recalculate content decay weights for all articles |
 
 ## Current Status
 
-**Working on:** Checkpoint 12 — Content decay
-**Completed:** Checkpoints 1–11
+**Working on:** Checkpoint 13 — Reading stats
+**Completed:** Checkpoints 1–12
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -108,7 +109,7 @@ Checkpoint tracker:
 [x] 9. MCP server connects
 [x] 10. Learned preferences
 [x] 11. Keyboard navigation
-[ ] 12. Content decay
+[x] 12. Content decay
 [ ] 13. Reading stats
 [ ] 14. Export works
 [ ] 15. Chrome extension
@@ -128,7 +129,7 @@ Checkpoint tracker:
 - **Digest generation**: Opus 4.6 generates three digest variants (ranked, by_topic, by_entity) from article summaries + metadata. Prompt templates in `tiro/intelligence/prompts.py`. Cached in SQLite `digests` table by date+type. Opus call wrapped in `asyncio.to_thread()` to avoid blocking the event loop.
 - **Digest caching**: Cache lookup falls back to the most recent digest when today's doesn't exist yet (avoids regenerating at midnight). UI shows a time-ago banner ("Generated 3h ago") and turns yellow/amber when the digest is >24h stale, nudging the user to regenerate. `generate_digest()` must return a full datetime string for `created_at` (not just date), otherwise JS parses it as UTC midnight and the banner shows stale immediately.
 - **process_article() uses keyword-only args**: Call as `process_article(**extracted, config=config)`, not positional args.
-- **Browser cache busting**: Static files (CSS/JS) use `?v=N` query params in base.html and reader.html (currently v=17). Increment the version when modifying static files.
+- **Browser cache busting**: Static files (CSS/JS) use `?v=N` query params in base.html and reader.html (currently v=18). Increment the version when modifying static files.
 - **Opus JSON responses**: Opus may wrap JSON in ```json fences despite being told not to. Always strip markdown code fences before `json.loads()`. See `analysis.py` for the pattern.
 - **Opus call duration**: Analysis calls can take up to a minute (full article text). Digest calls take 10-30s. UI loading text must reflect actual wait times.
 - **Ingenuity analysis**: On-demand only (not precomputed). Cached in `articles.ingenuity_analysis` (JSON blob with `analyzed_at` timestamp). `?refresh=true` to re-analyze, `?cache_only=true` to check cache without triggering Opus. Panel shows intro page first, user clicks "Run" to start. Results have collapsible dimension sections and aggregate-score-colored summary.
@@ -151,4 +152,5 @@ Checkpoint tracker:
 - **Summary styling**: Summaries in both inbox and reader show as "**TL;DR** – *summary text*" (bold prefix, en dash, italicized body).
 - **ai_tier in all queries**: The `ai_tier` column must be included in all SQL queries returning article data (articles list, detail, AND search) — same pattern as `source_type`.
 - **Keyboard navigation** (Checkpoint 11): Full keyboard-first navigation. Inbox: `j`/`k` move selection, `Enter` opens article, `s` toggles VIP, `1`/`2`/`3` rate (dislike/like/love), `/` focuses search, `d` switches to digest, `a` switches to articles, `c` classify/reclassify, `?` shows shortcuts overlay. Digest view: `r` generates or regenerates digest. Reader: `b`/`Esc` goes back, `s` toggles VIP, `1`/`2`/`3` rate, `i` toggles analysis panel, `r` runs/re-runs analysis (when panel open), `?` shows shortcuts. Keys are ignored when focus is on input/select elements. Selected article gets `.kb-selected` highlight class. Shortcuts overlay in `base.html` (shared), populated by JS per view. VIP star in reader view now clickable with `data-source-id`.
-- **Browser cache busting**: Currently at v=17 in base.html and reader.html. ALWAYS increment when modifying static files.
+- **Content decay** (Checkpoint 12): `tiro/decay.py` recalculates `relevance_weight` for all articles. Liked/Loved articles immune (1.0). Others decay after 7-day grace period: default 0.95/day, disliked 0.90/day, VIP 0.98/day. Min weight 0.01. Runs on server startup (in `app.py` lifespan) and via `POST /api/decay/recalculate`. `GET /api/articles` supports `?include_decayed=false` (hides articles below threshold). Inbox defaults to hiding decayed articles, "Show archived" toggle to reveal them. Digest prompt includes `relevance_weight` for decay-aware ranking. Config values in `config.yaml` (`decay_rate_default`, `decay_rate_disliked`, `decay_rate_vip`, `decay_threshold`).
+- **Browser cache busting**: Currently at v=18 in base.html and reader.html. ALWAYS increment when modifying static files.

@@ -27,6 +27,7 @@ async def get_article(article_id: int, request: Request):
                 a.id, a.title, a.author, a.url, a.slug, a.summary,
                 a.word_count, a.reading_time_min, a.published_at, a.ingested_at,
                 a.is_read, a.rating, a.opened_count, a.markdown_path, a.ai_tier,
+                a.relevance_weight,
                 s.name AS source_name, s.domain, s.is_vip, s.id AS source_id,
                 s.source_type
             FROM articles a
@@ -64,22 +65,32 @@ async def get_article(article_id: int, request: Request):
 
 
 @router.get("")
-async def list_articles(request: Request):
-    """List all articles, VIP pinned to top, newest first."""
+async def list_articles(request: Request, include_decayed: bool = True):
+    """List all articles, VIP pinned to top, newest first.
+
+    ?include_decayed=false hides articles with relevance_weight below the decay threshold.
+    """
     config = request.app.state.config
     conn = get_connection(config.db_path)
     try:
-        rows = conn.execute("""
+        query = """
             SELECT
                 a.id, a.title, a.author, a.url, a.slug, a.summary,
                 a.word_count, a.reading_time_min, a.published_at, a.ingested_at,
                 a.is_read, a.rating, a.opened_count, a.ai_tier,
+                a.relevance_weight,
                 s.name AS source_name, s.domain, s.is_vip, s.id AS source_id,
                 s.source_type
             FROM articles a
             LEFT JOIN sources s ON a.source_id = s.id
-            ORDER BY s.is_vip DESC, a.ingested_at DESC
-        """).fetchall()
+        """
+        params = []
+        if not include_decayed:
+            query += " WHERE a.relevance_weight >= ?"
+            params.append(config.decay_threshold)
+        query += " ORDER BY s.is_vip DESC, a.ingested_at DESC"
+
+        rows = conn.execute(query, params).fetchall()
 
         articles = []
         for row in rows:

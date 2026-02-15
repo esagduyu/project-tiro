@@ -5,6 +5,7 @@ let digestLoaded = false;
 let currentSort = "newest"; // "newest" | "oldest" | "importance"
 let cachedArticles = []; // store articles for re-sorting without re-fetching
 let selectedIndex = -1; // keyboard-selected article index
+let showArchived = false; // whether to include decayed articles
 
 document.addEventListener("DOMContentLoaded", () => {
     loadInbox();
@@ -192,7 +193,8 @@ async function loadInbox() {
     const toolbar = document.getElementById("inbox-toolbar");
 
     try {
-        const res = await fetch("/api/articles");
+        const url = showArchived ? "/api/articles?include_decayed=true" : "/api/articles?include_decayed=false";
+        const res = await fetch(url);
         const json = await res.json();
 
         if (!json.success || !json.data.length) {
@@ -550,9 +552,25 @@ function updateToolbar(articles) {
         discardToggle.style.display = "none";
     }
 
+    // Archived toggle — only show when not already showing archived
+    const archivedToggle = document.getElementById("archived-toggle");
+    if (archivedToggle) {
+        if (showArchived) {
+            archivedToggle.style.display = "inline-flex";
+            archivedToggle.textContent = "Hide archived";
+            archivedToggle.classList.add("active");
+        } else {
+            // Always show the button so user can toggle
+            archivedToggle.style.display = "inline-flex";
+            archivedToggle.textContent = "Show archived";
+            archivedToggle.classList.remove("active");
+        }
+    }
+
     // Attach handlers (safe to call multiple times — we replace onclick)
     classifyBtn.onclick = classifyArticles;
     discardToggle.onclick = toggleDiscarded;
+    if (archivedToggle) archivedToggle.onclick = toggleArchived;
 }
 
 async function classifyArticles() {
@@ -589,6 +607,11 @@ async function classifyArticles() {
         classifyBtn.disabled = false;
         classifyBtn.textContent = isReclassify ? "Reclassify" : "Classify inbox";
     }
+}
+
+function toggleArchived() {
+    showArchived = !showArchived;
+    loadInbox();
 }
 
 function toggleDiscarded() {
