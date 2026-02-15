@@ -402,7 +402,7 @@ async function loadRelatedArticles(articleId) {
         }
 
         listEl.innerHTML = json.data.map((r) => {
-            const date = formatDate(r.ingested_at);
+            const date = formatDate(r.published_at || r.ingested_at);
             const note = r.connection_note
                 ? `<div class="related-card-note">${esc(r.connection_note)}</div>`
                 : "";

@@ -232,12 +232,12 @@ function sortArticles(articles, mode) {
         copy.sort((a, b) => {
             // VIP pinned first, then newest
             if (a.is_vip !== b.is_vip) return b.is_vip ? 1 : -1;
-            return new Date(b.ingested_at) - new Date(a.ingested_at);
+            return new Date(b.published_at || b.ingested_at) - new Date(a.published_at || a.ingested_at);
         });
     } else if (mode === "oldest") {
         copy.sort((a, b) => {
             if (a.is_vip !== b.is_vip) return b.is_vip ? 1 : -1;
-            return new Date(a.ingested_at) - new Date(b.ingested_at);
+            return new Date(a.published_at || a.ingested_at) - new Date(b.published_at || b.ingested_at);
         });
     } else if (mode === "importance") {
         const tierOrder = { "must-read": 0, "summary-enough": 1, "discard": 2 };
@@ -247,7 +247,7 @@ function sortArticles(articles, mode) {
             if (ta !== tb) return ta - tb;
             // Within same tier: VIP first, then newest
             if (a.is_vip !== b.is_vip) return b.is_vip ? 1 : -1;
-            return new Date(b.ingested_at) - new Date(a.ingested_at);
+            return new Date(b.published_at || b.ingested_at) - new Date(a.published_at || a.ingested_at);
         });
     }
     return copy;
@@ -259,7 +259,7 @@ function renderArticle(a, showScore) {
     if (a.is_vip) classes.push("is-vip");
     if (a.ai_tier) classes.push(`tier-${a.ai_tier}`);
 
-    const date = formatDate(a.ingested_at);
+    const date = formatDate(a.published_at || a.ingested_at);
     const summary = a.summary || "";
     const tags = (a.tags || [])
         .map((t) => `<span class="tag clickable-tag" data-tag="${esc(t)}">${esc(t)}</span>`)

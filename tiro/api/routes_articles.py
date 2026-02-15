@@ -89,7 +89,7 @@ async def list_articles(request: Request, include_decayed: bool = True):
         if not include_decayed:
             query += " WHERE a.relevance_weight >= ?"
             params.append(config.decay_threshold)
-        query += " ORDER BY s.is_vip DESC, a.ingested_at DESC"
+        query += " ORDER BY s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) DESC"
 
         rows = conn.execute(query, params).fetchall()
 
