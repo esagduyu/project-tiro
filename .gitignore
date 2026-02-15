@@ -21,3 +21,6 @@ docs/
 # Playwright
 playwright-tests/
 .playwright-mcp/
+
+# Seed data
+seed-files/
