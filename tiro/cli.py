@@ -23,29 +23,41 @@ def cmd_init(args):
     init_db(config.db_path)
     init_vectorstore(config.chroma_dir)
 
-    # Write config.yaml into the library
+    # Write library config.yaml (just library path)
     lib_config = config.library / "config.yaml"
-    config_data = {"library_path": str(config.library)}
+    if not lib_config.exists():
+        lib_config.write_text(
+            yaml.dump({"library_path": str(config.library)}, default_flow_style=False)
+        )
 
-    # Prompt for API key if not already set
+    # Prompt for API key if not already set, save to project-root config.yaml
+    root_config = Path(args.config)
     api_key = os.environ.get("ANTHROPIC_API_KEY", "")
-    if not api_key and not lib_config.exists():
+    if not api_key:
+        # Check if already in root config
+        if root_config.exists():
+            existing = yaml.safe_load(root_config.read_text()) or {}
+            api_key = existing.get("anthropic_api_key", "")
+
+    if not api_key:
         print()
         print("Tiro uses the Anthropic API for AI features (digests, analysis, preferences).")
         print("Get your API key at https://console.anthropic.com/")
         print()
         api_key = input("Anthropic API key (or press Enter to skip): ").strip()
         if api_key:
-            config_data["anthropic_api_key"] = api_key
-            print("API key saved to config.yaml")
+            # Merge into root config.yaml
+            existing = {}
+            if root_config.exists():
+                existing = yaml.safe_load(root_config.read_text()) or {}
+            existing["anthropic_api_key"] = api_key
+            root_config.write_text(yaml.dump(existing, default_flow_style=False))
+            print(f"API key saved to {root_config}")
         else:
             print("Skipped — set ANTHROPIC_API_KEY env var or add it to config.yaml later.")
 
-    if not lib_config.exists():
-        lib_config.write_text(yaml.dump(config_data, default_flow_style=False))
-
     print(f"\nTiro library initialized at {config.library}")
-    print(f"Start the server with: tiro run")
+    print(f"Start the server with: uv run tiro run")
 
 
 def cmd_run(args):

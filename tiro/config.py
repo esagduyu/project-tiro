@@ -1,6 +1,7 @@
 """Configuration loading for Tiro."""
 
 import logging
+import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -34,6 +35,7 @@ class TiroConfig:
     decay_rate_disliked: float = DEFAULTS["decay_rate_disliked"]
     decay_rate_vip: float = DEFAULTS["decay_rate_vip"]
     decay_threshold: float = DEFAULTS["decay_threshold"]
+    anthropic_api_key: str | None = None
 
     @property
     def library(self) -> Path:
@@ -68,4 +70,10 @@ def load_config(config_path: str | Path = "config.yaml") -> TiroConfig:
     known_fields = {f.name for f in TiroConfig.__dataclass_fields__.values()}
     filtered = {k: v for k, v in data.items() if k in known_fields}
 
-    return TiroConfig(**filtered)
+    config = TiroConfig(**filtered)
+
+    # Set ANTHROPIC_API_KEY env var from config if not already set
+    if config.anthropic_api_key and not os.environ.get("ANTHROPIC_API_KEY"):
+        os.environ["ANTHROPIC_API_KEY"] = config.anthropic_api_key
+
+    return config
