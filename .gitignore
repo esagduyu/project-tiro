@@ -25,3 +25,7 @@ playwright-tests/
 
 # Seed data
 seed-files/
+
+# Temp files
+tmp/
+.DS_Store
