@@ -1615,7 +1615,7 @@ main {
 }
 
 .chart-container canvas {
-    height: 220px !important;
+    height: 300px !important;
 }
 
 .chart-title {
