@@ -186,6 +186,38 @@
       border-color: #444;
       color: #1a1a1a;
     }
+
+    /* Already saved state */
+    .already-icon {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .already-label {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #d97706;
+      text-align: center;
+      margin-bottom: 6px;
+    }
+
+    .already-title {
+      font-weight: 600;
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 4px;
+      line-height: 1.4;
+    }
+
+    .already-time {
+      font-size: 11px;
+      color: #888;
+      text-align: center;
+      margin-bottom: 12px;
+    }
   </style>
 </head>
 <body>
@@ -220,6 +252,15 @@
       <div class="success-title" id="success-title"></div>
       <div class="success-source" id="success-source"></div>
       <a class="open-btn" id="open-link" href="#" target="_blank">Open in Tiro</a>
+    </div>
+
+    <!-- Already saved state -->
+    <div id="state-already" class="state">
+      <div class="already-icon">&#128278;</div>
+      <div class="already-label">Already in your library</div>
+      <div class="already-title" id="already-title"></div>
+      <div class="already-time" id="already-time"></div>
+      <a class="open-btn" id="already-link" href="#" target="_blank">Open in Tiro</a>
     </div>
 
     <!-- Error state -->

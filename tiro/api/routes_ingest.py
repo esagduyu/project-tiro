@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, Request, UploadFile
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, HttpUrl
 
 from tiro.database import get_connection
@@ -15,6 +16,35 @@ from tiro.ingestion.web import fetch_and_extract
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/ingest", tags=["ingestion"])
+
+
+@router.get("/check")
+async def check_url(request: Request, url: str):
+    """Check if a URL is already saved. Returns article data if found."""
+    config = request.app.state.config
+    conn = get_connection(config.db_path)
+    try:
+        existing = conn.execute(
+            "SELECT a.id, a.title, a.ingested_at, s.name as source_name "
+            "FROM articles a LEFT JOIN sources s ON a.source_id = s.id "
+            "WHERE a.url = ?",
+            (url,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if existing:
+        return {
+            "success": True,
+            "saved": True,
+            "data": {
+                "id": existing["id"],
+                "title": existing["title"],
+                "source": existing["source_name"],
+                "ingested_at": existing["ingested_at"],
+            },
+        }
+    return {"success": True, "saved": False}
 
 
 class IngestURLRequest(BaseModel):
@@ -31,13 +61,28 @@ async def ingest_url(body: IngestURLRequest, request: Request):
     conn = get_connection(config.db_path)
     try:
         existing = conn.execute(
-            "SELECT id, title FROM articles WHERE url = ?", (url,)
+            "SELECT a.id, a.title, a.ingested_at, s.name as source_name "
+            "FROM articles a LEFT JOIN sources s ON a.source_id = s.id "
+            "WHERE a.url = ?",
+            (url,),
         ).fetchone()
     finally:
         conn.close()
     if existing:
         logger.info("Duplicate URL skipped: '%s' already saved as article %d", existing["title"], existing["id"])
-        raise HTTPException(status_code=409, detail=f"Article already saved: \"{existing['title']}\" (id={existing['id']})")
+        return JSONResponse(
+            status_code=409,
+            content={
+                "success": False,
+                "error": "already_saved",
+                "data": {
+                    "id": existing["id"],
+                    "title": existing["title"],
+                    "source": existing["source_name"],
+                    "ingested_at": existing["ingested_at"],
+                },
+            },
+        )
 
     try:
         extracted = await fetch_and_extract(url)
