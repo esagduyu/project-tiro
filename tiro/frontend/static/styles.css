@@ -1637,20 +1637,103 @@ main {
 
 .export-btn {
     padding: 0.35rem 0.8rem;
+    border: 1px solid #dc2626;
+    border-radius: 6px;
+    background: #dc2626;
+    font-size: 0.8rem;
+    font-family: inherit;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.export-btn:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
+}
+
+/* --- Export confirmation dialog --- */
+
+.export-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.export-dialog {
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    width: 420px;
+    max-width: 90vw;
+    padding: 1.5rem;
+}
+
+.export-dialog h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.export-dialog p {
+    font-size: 0.88rem;
+    color: var(--fg-secondary);
+    line-height: 1.6;
+    margin-bottom: 0.5rem;
+}
+
+.export-dialog ul {
+    font-size: 0.85rem;
+    color: var(--fg-secondary);
+    line-height: 1.6;
+    margin: 0.5rem 0 1.25rem;
+    padding-left: 1.25rem;
+}
+
+.export-dialog-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.5rem;
+}
+
+.export-cancel-btn {
+    padding: 0.45rem 1rem;
     border: 1px solid var(--border);
     border-radius: 6px;
     background: white;
-    font-size: 0.8rem;
+    font-size: 0.85rem;
     font-family: inherit;
     color: var(--fg-secondary);
     cursor: pointer;
     transition: all 0.15s;
 }
 
-.export-btn:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: #f0f4ff;
+.export-cancel-btn:hover {
+    background: var(--card-hover);
+    border-color: var(--fg-secondary);
+}
+
+.export-confirm-btn {
+    padding: 0.45rem 1rem;
+    border: 1px solid #dc2626;
+    border-radius: 6px;
+    background: #dc2626;
+    font-size: 0.85rem;
+    font-family: inherit;
+    font-weight: 500;
+    color: white;
+    cursor: pointer;
+    transition: all 0.15s;
+}
+
+.export-confirm-btn:hover {
+    background: #b91c1c;
+    border-color: #b91c1c;
 }
 
 .stats-controls {

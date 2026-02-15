@@ -348,9 +348,42 @@
     loadStats();
 
     // --- Export ---
-    document.getElementById('export-btn').addEventListener('click', function() {
-        window.location.href = '/api/export';
-    });
+    function showExportDialog() {
+        var existing = document.getElementById('export-overlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'export-overlay';
+        overlay.className = 'export-overlay';
+        overlay.innerHTML =
+            '<div class="export-dialog">' +
+                '<h3>Export Library</h3>' +
+                '<p>This will download a zip file containing:</p>' +
+                '<ul>' +
+                    '<li>All saved articles as markdown files (with frontmatter)</li>' +
+                    '<li>metadata.json with full structured data (articles, sources, tags, entities, relations)</li>' +
+                    '<li>README explaining the bundle format</li>' +
+                '</ul>' +
+                '<p>Your data stays yours — open formats, no lock-in.</p>' +
+                '<div class="export-dialog-actions">' +
+                    '<button class="export-cancel-btn" id="export-cancel">Cancel</button>' +
+                    '<button class="export-confirm-btn" id="export-confirm">Download</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+
+        document.getElementById('export-cancel').addEventListener('click', function() { overlay.remove(); });
+        document.getElementById('export-confirm').addEventListener('click', function() {
+            overlay.remove();
+            window.location.href = '/api/export';
+        });
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.addEventListener('keydown', function handler(e) {
+            if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', handler); }
+        });
+    }
+
+    document.getElementById('export-btn').addEventListener('click', showExportDialog);
 
     // --- Keyboard navigation ---
     document.addEventListener('keydown', function(e) {
@@ -380,7 +413,7 @@
                 break;
             case 'e':
                 e.preventDefault();
-                window.location.href = '/api/export';
+                showExportDialog();
                 break;
             case '?':
                 e.preventDefault();
