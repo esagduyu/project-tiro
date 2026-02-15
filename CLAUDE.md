@@ -94,8 +94,8 @@ lsof -ti :8000 | xargs kill -9
 
 ## Current Status
 
-**Working on:** Checkpoint 15 — Chrome extension
-**Completed:** Checkpoints 1–14
+**Working on:** Checkpoint 16 — Packaging
+**Completed:** Checkpoints 1–15
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -114,7 +114,7 @@ Checkpoint tracker:
 [x] 12. Content decay
 [x] 13. Reading stats
 [x] 14. Export works
-[ ] 15. Chrome extension
+[x] 15. Chrome extension
 [ ] 16. Packaging
 [ ] 17. Digest email
 -->
@@ -176,5 +176,6 @@ Playwright MCP is configured at user scope. Use it to visually verify UI changes
 - **Content decay** (Checkpoint 12): `tiro/decay.py` recalculates `relevance_weight` for all articles. Liked/Loved articles immune (1.0). Others decay after 7-day grace period: default 0.95/day, disliked 0.90/day, VIP 0.98/day. Min weight 0.01. Runs on server startup (in `app.py` lifespan) and via `POST /api/decay/recalculate`. `GET /api/articles` supports `?include_decayed=false` (hides articles below threshold). Inbox defaults to hiding decayed articles, "Show archived" toggle to reveal them. Digest prompt includes `relevance_weight` for decay-aware ranking. Config values in `config.yaml` (`decay_rate_default`, `decay_rate_disliked`, `decay_rate_vip`, `decay_threshold`). **Gotcha**: "Show archived" also force-shows discarded articles, since an article can be both decayed and classified as discard — without this, archived+discarded articles stay hidden even after toggling.
 - **Reading stats** (Checkpoint 13): `tiro/stats.py` provides `update_stat(config, field, increment)` and `get_stats(config, period)`. Stats updates hooked into `process_article()` (articles_saved), `mark_read()` (articles_read + reading_time), `rate_article()` (articles_rated). `GET /api/stats?period=week|month|all` returns daily_counts, totals, top_tags, top_sources (with love/like/dislike breakdowns), reading_streak. Stats page at `/stats` uses Chart.js (CDN) with 4 charts: saved bar, read-vs-saved line, top topics horizontal bar, sources engagement stacked bar. Summary cards show totals + streak. Nav link "Stats" in header. Charts stacked vertically (single-column). Love color is purple (#7c3aed) to distinguish from red dislike.
 - **Export** (Checkpoint 14): `tiro/export.py` generates a zip bundle with `articles/*.md` files (frontmatter intact), `metadata.json` (articles, sources, tags, entities, relations, junction tables), and `README.md`. Filterable by tag, source_id, rating_min, date_from. `GET /api/export` streams the zip via `FileResponse` with `BackgroundTask` cleanup. `tiro export --output ./file.zip --tag ai` CLI command available. Export button on stats page header (keyboard shortcut `e`). `markdown_path` in DB stores just the filename — use `config.articles_dir / markdown_path` to resolve, NOT `config.library / markdown_path`.
+- **Chrome extension** (Checkpoint 15): `extension/` directory with Manifest V3. Popup shows current page title/URL, "Save to Tiro" button, optional VIP toggle. POSTs to `localhost:8000/api/ingest/url`. Shows success with article title + source + "Open in Tiro" link, or error if server not running. Icons: blue circle with white "T" (16/48/128px, generated with Pillow). `process_article()` now returns `source_id` in its response dict so VIP toggle works. Load as unpacked extension via `chrome://extensions`.
 - **Export** UI: Red button with white text on stats page. Clicking opens a confirmation dialog explaining what the zip contains (markdown files, metadata.json, README). Export only triggers after user clicks "Download". Dialog dismissible via Cancel, Esc, or clicking overlay.
 - **Browser cache busting**: Currently at v=25 in base.html and reader.html. ALWAYS increment when modifying static files.

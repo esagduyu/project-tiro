@@ -246,6 +246,7 @@ def process_article(
             "url": url,
             "slug": slug,
             "source": source_name,
+            "source_id": source_id,
             "word_count": word_count,
             "reading_time_min": reading_time_min,
             "markdown_path": md_filename,

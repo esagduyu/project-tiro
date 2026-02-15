@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      width: 320px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      color: #1a1a1a;
+      background: #fafafa;
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 12px 14px;
+      border-bottom: 1px solid #e5e5e5;
+    }
+
+    .header img { width: 20px; height: 20px; }
+
+    .header span {
+      font-weight: 700;
+      font-size: 14px;
+      letter-spacing: -0.01em;
+    }
+
+    .content { padding: 14px; }
+
+    .page-title {
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.4;
+      margin-bottom: 4px;
+      color: #1a1a1a;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .page-url {
+      font-size: 11px;
+      color: #888;
+      margin-bottom: 12px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .vip-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 14px;
+      font-size: 12px;
+      color: #444;
+    }
+
+    .vip-row input[type="checkbox"] {
+      accent-color: #d97706;
+      width: 14px;
+      height: 14px;
+    }
+
+    .save-btn {
+      width: 100%;
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #2563eb;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .save-btn:hover { background: #1d4ed8; }
+
+    .save-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    /* States */
+    .state { display: none; }
+    .state.active { display: block; }
+
+    /* Saving state */
+    .saving-text {
+      text-align: center;
+      padding: 20px 0;
+      color: #888;
+      font-size: 13px;
+    }
+
+    .spinner {
+      width: 24px;
+      height: 24px;
+      border: 3px solid #e5e5e5;
+      border-top-color: #2563eb;
+      border-radius: 50%;
+      margin: 0 auto 10px;
+      animation: spin 0.7s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Success state */
+    .success-icon {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .success-title {
+      font-weight: 600;
+      font-size: 13px;
+      text-align: center;
+      margin-bottom: 4px;
+    }
+
+    .success-source {
+      font-size: 11px;
+      color: #888;
+      text-align: center;
+      margin-bottom: 12px;
+    }
+
+    .open-btn {
+      display: block;
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #e5e5e5;
+      border-radius: 6px;
+      background: white;
+      color: #444;
+      font-size: 12px;
+      font-family: inherit;
+      text-align: center;
+      text-decoration: none;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .open-btn:hover {
+      border-color: #2563eb;
+      color: #2563eb;
+    }
+
+    /* Error state */
+    .error-icon {
+      text-align: center;
+      font-size: 28px;
+      margin-bottom: 8px;
+    }
+
+    .error-text {
+      font-size: 12px;
+      color: #dc2626;
+      text-align: center;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+
+    .retry-btn {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #e5e5e5;
+      border-radius: 6px;
+      background: white;
+      color: #444;
+      font-size: 12px;
+      font-family: inherit;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .retry-btn:hover {
+      border-color: #444;
+      color: #1a1a1a;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <img src="icons/icon-48.png" alt="Tiro">
+    <span>Save to Tiro</span>
+  </div>
+
+  <div class="content">
+    <!-- Ready state -->
+    <div id="state-ready" class="state active">
+      <div class="page-title" id="page-title">Loading...</div>
+      <div class="page-url" id="page-url"></div>
+      <div class="vip-row">
+        <input type="checkbox" id="vip-toggle">
+        <label for="vip-toggle">Mark source as VIP</label>
+      </div>
+      <button class="save-btn" id="save-btn">Save to Tiro</button>
+    </div>
+
+    <!-- Saving state -->
+    <div id="state-saving" class="state">
+      <div class="saving-text">
+        <div class="spinner"></div>
+        Saving to your library...
+      </div>
+    </div>
+
+    <!-- Success state -->
+    <div id="state-success" class="state">
+      <div class="success-icon">&#10003;</div>
+      <div class="success-title" id="success-title"></div>
+      <div class="success-source" id="success-source"></div>
+      <a class="open-btn" id="open-link" href="#" target="_blank">Open in Tiro</a>
+    </div>
+
+    <!-- Error state -->
+    <div id="state-error" class="state">
+      <div class="error-icon">&#10007;</div>
+      <div class="error-text" id="error-text">Could not save this page.</div>
+      <button class="retry-btn" id="retry-btn">Try again</button>
+    </div>
+  </div>
+
+  <script src="popup.js"></script>
+</body>
+</html>
