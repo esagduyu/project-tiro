@@ -17,3 +17,7 @@ tiro-library/
 
 # docs for superpower plans
 docs/
+
+# Playwright
+playwright-tests/
+.playwright-mcp/
