@@ -35,10 +35,13 @@ def send_digest_email(config: TiroConfig, all_sections: bool = False) -> dict:
             age_hours = (datetime.utcnow() - datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")).total_seconds() / 3600
             if age_hours < 24:
                 all_data = cached
+                logger.info("Using cached digest (%.1fh old) for email", age_hours)
             else:
+                logger.info("Cached digest too old (%.1fh), regenerating", age_hours)
                 all_data = generate_digest(config)
                 created_at = next(iter(all_data.values()))["created_at"]
         else:
+            logger.info("No cached digest found, generating fresh")
             all_data = generate_digest(config)
             created_at = next(iter(all_data.values()))["created_at"]
 
@@ -61,11 +64,14 @@ def send_digest_email(config: TiroConfig, all_sections: bool = False) -> dict:
             age_hours = (datetime.utcnow() - datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")).total_seconds() / 3600
             if age_hours < 24:
                 digest_content = cached["ranked"]["content"]
+                logger.info("Using cached ranked digest (%.1fh old) for email", age_hours)
             else:
+                logger.info("Cached ranked digest too old (%.1fh), regenerating", age_hours)
                 result = generate_digest(config)
                 digest_content = result["ranked"]["content"]
                 created_at = result["ranked"]["created_at"]
         else:
+            logger.info("No cached ranked digest found, generating fresh")
             result = generate_digest(config)
             digest_content = result["ranked"]["content"]
             created_at = result["ranked"]["created_at"]
@@ -133,39 +139,72 @@ def _format_date(iso_date: str) -> str:
     return d.strftime("%B %d, %Y").replace(" 0", " ")
 
 
+# Roman color palette (matches papyrus theme)
+_COLORS = {
+    "bg": "#FAF6F0",          # papyrus cream
+    "surface": "#FFFFFF",
+    "fg": "#3D3630",          # warm brown text
+    "fg_secondary": "#6B6560",
+    "muted": "#9C9590",
+    "accent": "#C45B3E",      # terra cotta
+    "gold": "#B8943E",        # warm gold for links
+    "border": "#E8E0D8",
+    "hr": "#D9D0C7",
+}
+
+
 def _digest_to_html(markdown_content: str, config: TiroConfig) -> str:
     """Convert a markdown digest to a clean HTML email body."""
-    # Simple markdown-to-HTML conversion for email
-    # Convert article links from relative to absolute
-    base_url = f"http://{config.host}:{config.port}"
+    import re
+
+    # Use localhost for article links (0.0.0.0 won't resolve in email clients)
+    host = "localhost" if config.host == "0.0.0.0" else config.host
+    base_url = f"http://{host}:{config.port}"
+    c = _COLORS
     html = markdown_content
 
     # Convert markdown links [text](/articles/123) to absolute HTML links
-    import re
     html = re.sub(
         r'\[([^\]]+)\]\(/articles/(\d+)\)',
-        rf'<a href="{base_url}/articles/\2" style="color: #2563eb; text-decoration: none;">\1</a>',
+        rf'<a href="{base_url}/articles/\2" style="color: {c["gold"]}; text-decoration: none; font-weight: 500;">\1</a>',
         html,
     )
 
     # Convert remaining markdown links [text](url)
     html = re.sub(
         r'\[([^\]]+)\]\((https?://[^\)]+)\)',
-        r'<a href="\2" style="color: #2563eb; text-decoration: none;">\1</a>',
+        rf'<a href="\2" style="color: {c["gold"]}; text-decoration: none;">\1</a>',
         html,
     )
 
     # Convert markdown headings
-    html = re.sub(r'^#### (.+)$', r'<h4 style="margin: 1em 0 0.3em; color: #1a1a1a;">\1</h4>', html, flags=re.MULTILINE)
-    html = re.sub(r'^### (.+)$', r'<h3 style="margin: 1.2em 0 0.4em; color: #1a1a1a;">\1</h3>', html, flags=re.MULTILINE)
-    html = re.sub(r'^## (.+)$', r'<h2 style="margin: 1.5em 0 0.5em; color: #1a1a1a;">\1</h2>', html, flags=re.MULTILINE)
+    html = re.sub(
+        r'^#### (.+)$',
+        rf'<h4 style="margin: 1em 0 0.3em; color: {c["fg"]}; font-size: 14px;">\1</h4>',
+        html, flags=re.MULTILINE,
+    )
+    html = re.sub(
+        r'^### (.+)$',
+        rf'<h3 style="margin: 1.2em 0 0.4em; color: {c["fg"]}; font-size: 16px;">\1</h3>',
+        html, flags=re.MULTILINE,
+    )
+    html = re.sub(
+        r'^## (.+)$',
+        rf'<h2 style="margin: 1.5em 0 0.5em; color: {c["accent"]}; font-size: 18px; '
+        rf'padding-bottom: 6px; border-bottom: 1px solid {c["border"]};">\1</h2>',
+        html, flags=re.MULTILINE,
+    )
 
     # Bold and italic
     html = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', html)
     html = re.sub(r'\*(.+?)\*', r'<em>\1</em>', html)
 
     # List items
-    html = re.sub(r'^- (.+)$', r'<li style="margin-bottom: 0.3em;">\1</li>', html, flags=re.MULTILINE)
+    html = re.sub(
+        r'^- (.+)$',
+        rf'<li style="margin-bottom: 0.3em; color: {c["fg_secondary"]};">\1</li>',
+        html, flags=re.MULTILINE,
+    )
 
     # Wrap consecutive <li> items in <ul>
     html = re.sub(
@@ -175,7 +214,11 @@ def _digest_to_html(markdown_content: str, config: TiroConfig) -> str:
     )
 
     # Numbered list items
-    html = re.sub(r'^(\d+)\. (.+)$', r'<li style="margin-bottom: 0.3em;">\2</li>', html, flags=re.MULTILINE)
+    html = re.sub(
+        r'^(\d+)\. (.+)$',
+        rf'<li style="margin-bottom: 0.3em; color: {c["fg_secondary"]};">\2</li>',
+        html, flags=re.MULTILINE,
+    )
 
     # Paragraphs: wrap remaining plain lines
     lines = html.split('\n')
@@ -187,25 +230,36 @@ def _digest_to_html(markdown_content: str, config: TiroConfig) -> str:
         elif stripped.startswith('<'):
             result.append(line)
         else:
-            result.append(f'<p style="margin: 0.5em 0; line-height: 1.6;">{stripped}</p>')
+            result.append(
+                f'<p style="margin: 0.5em 0; line-height: 1.6; color: {c["fg_secondary"]};">{stripped}</p>'
+            )
     html = '\n'.join(result)
 
     # Horizontal rules
-    html = html.replace('---', '<hr style="border: none; border-top: 1px solid #e5e5e5; margin: 1.5em 0;">')
+    html = html.replace(
+        '---',
+        f'<hr style="border: none; border-top: 1px solid {c["hr"]}; margin: 1.5em 0;">',
+    )
+
+    today_str = _format_date(str(date.today()))
 
     return f"""<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; color: #1a1a1a; background: #fafafa; line-height: 1.6;">
-    <div style="background: white; border-radius: 8px; padding: 24px; border: 1px solid #e5e5e5;">
-        <div style="text-align: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 2px solid #2563eb;">
-            <h1 style="margin: 0; font-size: 20px; color: #1a1a1a; letter-spacing: -0.01em;">Tiro Daily Digest</h1>
-            <p style="margin: 4px 0 0; font-size: 13px; color: #888;">{_format_date(str(date.today()))}</p>
+<body style="font-family: Georgia, 'Times New Roman', serif; max-width: 640px; margin: 0 auto; padding: 20px; color: {c["fg"]}; background: {c["bg"]}; line-height: 1.6;">
+    <div style="background: {c["surface"]}; border-radius: 6px; padding: 28px 32px; border: 1px solid {c["border"]};">
+        <div style="text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid {c["accent"]};">
+            <div style="font-size: 28px; margin-bottom: 4px;">&#8266;</div>
+            <h1 style="margin: 0; font-size: 20px; color: {c["fg"]}; letter-spacing: 0.02em; font-weight: 600;">Tiro Daily Digest</h1>
+            <p style="margin: 6px 0 0; font-size: 13px; color: {c["muted"]};">{today_str}</p>
         </div>
         {html}
     </div>
-    <p style="text-align: center; font-size: 11px; color: #aaa; margin-top: 16px;">
-        Sent by <a href="{base_url}" style="color: #888;">Tiro</a> — your reading, organized
+    <p style="text-align: center; font-size: 11px; color: {c["muted"]}; margin-top: 16px; font-style: italic;">
+        "...without you the oracle was dumb." — Cicero to Tiro, 53 BC
+    </p>
+    <p style="text-align: center; font-size: 11px; color: {c["muted"]}; margin-top: 4px;">
+        Sent by <a href="{base_url}" style="color: {c["gold"]};">Tiro</a> — your reading, organized
     </p>
 </body>
 </html>"""
