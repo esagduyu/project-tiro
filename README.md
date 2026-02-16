@@ -22,7 +22,7 @@ Named after Cicero's freedman who preserved and organized his master's works for
 
 ## Quick Start
 
-**Prerequisites:** Python 3.11+, [uv](https://docs.astral.sh/uv/), [Anthropic API key](https://console.anthropic.com/)
+**Prerequisites:** Python 3.11+, [uv](https://docs.astral.sh/uv/), [Anthropic API key](https://console.anthropic.com/), optionally [OpenAI API key](https://platform.openai.com/api-keys) for TTS
 
 ```bash
 git clone https://github.com/esagduyu/project-tiro.git
@@ -58,6 +58,7 @@ That's it. Save your first article by pasting a URL into the inbox.
 ### Reading
 
 - **Clean reader** — Distraction-free article view with full markdown rendering
+- **Listen to articles** — OpenAI TTS reads articles aloud with streaming playback (starts in ~2s), cached as MP3. Falls back to browser speech synthesis when no OpenAI key is configured.
 - **Semantic search** — Find articles by meaning, not just keywords
 - **Related articles** — Auto-computed on save with AI-generated connection notes
 - **Content decay** — Unengaged articles naturally fade from digests over time
@@ -65,6 +66,8 @@ That's it. Save your first article by pasting a URL into the inbox.
 ### Productivity
 
 - **Keyboard-first** — Full `j`/`k`/`Enter`/`Esc` navigation, ratings with `1`/`2`/`3`, shortcuts overlay with `?`
+- **Gmail integration** — Send digest emails via Gmail SMTP, auto-ingest newsletters via IMAP label monitoring
+- **Settings page** — Configure email and TTS from the web UI
 - **Reading stats** — Charts showing articles saved/read, top topics, source engagement, reading streak
 - **Export** — Download your entire library as a portable zip (markdown files + metadata JSON)
 - **MCP server** — Query your library from Claude Desktop or Claude Code
@@ -77,20 +80,22 @@ That's it. Save your first article by pasting a URL into the inbox.
 Web UI (localhost:8000)
   ↕ REST API
 FastAPI Backend
-  ├── Ingestion Engine (readability-lxml + markdownify)
+  ├── Ingestion Engine (readability-lxml + markdownify + IMAP)
   ├── Intelligence Layer (Opus 4.6 — digests, analysis, preferences)
   ├── Lightweight Processing (Haiku — tags, entities, summaries)
+  ├── TTS Engine (OpenAI TTS streaming + speechSynthesis fallback)
   ├── Query Layer (ChromaDB semantic search + SQLite metadata)
   └── MCP Server (7 tools for Claude integration)
   ↕
 Storage Layer (all local)
   ├── articles/*.md      (markdown files with YAML frontmatter)
-  ├── tiro.db            (SQLite — metadata, preferences, stats)
+  ├── audio/*.mp3        (cached TTS audio files)
+  ├── tiro.db            (SQLite — metadata, preferences, stats, audio)
   ├── chroma/            (ChromaDB — vector embeddings)
   └── config.yaml
 ```
 
-**Tech stack:** FastAPI, SQLite, ChromaDB, sentence-transformers, readability-lxml, markdownify, Anthropic API (Opus 4.6 + Haiku 4.5)
+**Tech stack:** FastAPI, SQLite, ChromaDB, sentence-transformers, readability-lxml, markdownify, Anthropic API (Opus 4.6 + Haiku 4.5), OpenAI TTS API
 
 ---
 
@@ -98,11 +103,13 @@ Storage Layer (all local)
 
 | Command | Description |
 |---------|-------------|
-| `uv run tiro init` | Initialize library, create databases, prompt for API key |
+| `uv run tiro init` | Initialize library, create databases, prompt for API keys + email setup |
 | `uv run tiro run` | Start server at localhost:8000 and open browser |
 | `uv run tiro run --no-browser` | Start server without opening browser |
 | `uv run tiro export -o backup.zip` | Export library as zip (supports `--tag`, `--source-id`, `--rating-min`, `--date-from` filters) |
 | `uv run tiro import-emails ./newsletters/` | Bulk import .eml files from a directory |
+| `uv run tiro setup-email` | Configure Gmail SMTP + IMAP integration |
+| `uv run tiro check-email` | Check IMAP inbox for new newsletters |
 | `uv run tiro-mcp` | Start the MCP server (for Claude Desktop/Code integration) |
 
 ---
@@ -232,8 +239,10 @@ Also available via the API (`GET /api/export`) and the Export button on the Stat
 | `b` / `Esc` | Back to inbox |
 | `s` | Toggle VIP |
 | `1` / `2` / `3` | Rate: dislike / like / love |
+| `p` | Play / pause audio |
 | `i` | Toggle analysis panel |
 | `r` | Run / re-run analysis (when panel open) |
+| `g` | Go to stats |
 | `?` | Show shortcuts overlay |
 
 ### Stats
@@ -244,6 +253,13 @@ Also available via the API (`GET /api/export`) and the Export button on the Stat
 | `e` | Export library |
 | `?` | Show shortcuts overlay |
 
+### Settings
+
+| Key | Action |
+|-----|--------|
+| `b` / `Esc` | Back to inbox |
+| `?` | Show shortcuts overlay |
+
 ---
 
 ## Project Structure
@@ -252,13 +268,14 @@ Also available via the API (`GET /api/export`) and the Export button on the Stat
 project-tiro/
 ├── tiro/                       # Python package
 │   ├── app.py                  # FastAPI app, router registration
-│   ├── cli.py                  # CLI commands (init, run, export, import-emails)
+│   ├── cli.py                  # CLI commands (init, run, export, import-emails, setup-email, check-email)
 │   ├── config.py               # Config loading (dataclass + YAML)
 │   ├── database.py             # SQLite schema and helpers
 │   ├── vectorstore.py          # ChromaDB initialization
 │   ├── decay.py                # Content decay system
 │   ├── stats.py                # Reading stats tracking
 │   ├── export.py               # Library export (zip generation)
+│   ├── tts.py                  # OpenAI TTS streaming + caching
 │   ├── api/                    # FastAPI route handlers
 │   ├── ingestion/              # Web + email content extraction
 │   ├── intelligence/           # Opus 4.6 features (digest, analysis, preferences)
