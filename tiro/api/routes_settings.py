@@ -1,5 +1,6 @@
 """Settings API routes."""
 
+import asyncio
 import logging
 import os
 import re
@@ -197,6 +198,87 @@ async def update_tts_settings(body: TTSSettingsUpdate, request: Request):
             "tts_configured": True,
             "tts_voice": body.tts_voice,
             "tts_model": body.tts_model,
+        },
+    }
+
+
+class DigestScheduleUpdate(BaseModel):
+    enabled: bool = False
+    time: str = "07:00"           # HH:MM format
+    unread_only: bool = False
+    timezone_offset: int = 0      # from JS getTimezoneOffset()
+
+
+@router.get("/digest-schedule")
+async def get_digest_schedule(request: Request):
+    """Get current digest schedule configuration."""
+    config = request.app.state.config
+    return {
+        "success": True,
+        "data": {
+            "enabled": config.digest_schedule_enabled,
+            "time": config.digest_schedule_time,
+            "unread_only": config.digest_unread_only,
+            "timezone_offset": config.digest_timezone_offset,
+            "email_configured": bool(config.smtp_user and config.smtp_password and config.digest_email),
+        },
+    }
+
+
+@router.post("/digest-schedule")
+async def update_digest_schedule(body: DigestScheduleUpdate, request: Request):
+    """Update digest schedule configuration."""
+    # Validate HH:MM format
+    if not re.match(r"^\d{2}:\d{2}$", body.time):
+        raise HTTPException(status_code=400, detail="Time must be in HH:MM format")
+    parts = body.time.split(":")
+    hour, minute = int(parts[0]), int(parts[1])
+    if hour < 0 or hour > 23 or minute < 0 or minute > 59:
+        raise HTTPException(status_code=400, detail="Invalid time value")
+
+    config = request.app.state.config
+
+    config_path = Path("config.yaml")
+    if not config_path.exists():
+        raise HTTPException(status_code=500, detail="config.yaml not found")
+
+    config_data = yaml.safe_load(config_path.read_text()) or {}
+    config_data["digest_schedule_enabled"] = body.enabled
+    config_data["digest_schedule_time"] = body.time
+    config_data["digest_unread_only"] = body.unread_only
+    config_data["digest_timezone_offset"] = body.timezone_offset
+    config_path.write_text(yaml.dump(config_data, default_flow_style=False))
+
+    # Update live config
+    config.digest_schedule_enabled = body.enabled
+    config.digest_schedule_time = body.time
+    config.digest_unread_only = body.unread_only
+    config.digest_timezone_offset = body.timezone_offset
+
+    # Dynamically start/stop scheduler task
+    existing_task = getattr(request.app.state, "digest_task", None)
+    if existing_task and not existing_task.done():
+        existing_task.cancel()
+        try:
+            await existing_task
+        except asyncio.CancelledError:
+            pass
+
+    if body.enabled:
+        from tiro.app import _digest_schedule_loop
+        request.app.state.digest_task = asyncio.create_task(_digest_schedule_loop(config))
+        logger.info("Digest schedule started: %s daily", body.time)
+    else:
+        request.app.state.digest_task = None
+        logger.info("Digest schedule disabled")
+
+    return {
+        "success": True,
+        "data": {
+            "enabled": body.enabled,
+            "time": body.time,
+            "unread_only": body.unread_only,
+            "timezone_offset": body.timezone_offset,
         },
     }
 

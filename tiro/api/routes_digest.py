@@ -6,7 +6,12 @@ from datetime import date
 
 from fastapi import APIRouter, HTTPException, Request
 
-from tiro.intelligence.digest import generate_digest, get_cached_digest
+from tiro.intelligence.digest import (
+    generate_digest,
+    get_cached_digest,
+    get_digest_by_date,
+    get_digest_dates,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +19,7 @@ router = APIRouter(prefix="/api/digest", tags=["digest"])
 
 
 @router.get("/today")
-async def digest_today(request: Request, refresh: bool = False):
+async def digest_today(request: Request, refresh: bool = False, unread_only: bool = False):
     """Generate or retrieve today's cached digest (all three variants)."""
     config = request.app.state.config
     today = date.today().isoformat()
@@ -28,7 +33,7 @@ async def digest_today(request: Request, refresh: bool = False):
 
     # Generate fresh digest (offloaded to thread — Opus call can take 10-30s)
     try:
-        result = await asyncio.to_thread(generate_digest, config)
+        result = await asyncio.to_thread(generate_digest, config, unread_only=unread_only)
         return {"success": True, "data": result, "cached": False}
     except RuntimeError as e:
         raise HTTPException(status_code=503, detail=str(e))
@@ -70,3 +75,21 @@ async def digest_by_type(digest_type: str, request: Request, refresh: bool = Fal
     except Exception as e:
         logger.error("Digest generation failed: %s", e, exc_info=True)
         raise HTTPException(status_code=500, detail="Digest generation failed")
+
+
+@router.get("/history")
+async def digest_history(request: Request):
+    """Get list of dates with cached digests."""
+    config = request.app.state.config
+    dates = await asyncio.to_thread(get_digest_dates, config)
+    return {"success": True, "data": dates}
+
+
+@router.get("/date/{target_date}")
+async def digest_by_date_endpoint(target_date: str, request: Request):
+    """Get cached digest for a specific date."""
+    config = request.app.state.config
+    result = await asyncio.to_thread(get_digest_by_date, config, target_date)
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"No digest found for {target_date}")
+    return {"success": True, "data": result}

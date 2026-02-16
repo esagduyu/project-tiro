@@ -52,6 +52,10 @@ class TiroConfig:
     openai_api_key: str | None = None
     tts_voice: str = "nova"
     tts_model: str = "tts-1"
+    digest_schedule_enabled: bool = False
+    digest_schedule_time: str = "07:00"       # HH:MM in user's local time
+    digest_unread_only: bool = False
+    digest_timezone_offset: int = 0           # from JS getTimezoneOffset()
     inbox_page_size: int = 50
     theme_light: str = "papyrus"
     theme_dark: str = "roman-night"

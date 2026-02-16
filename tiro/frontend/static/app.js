@@ -306,6 +306,41 @@ function setupDigestTabs() {
     if (refreshBtn) {
         refreshBtn.addEventListener("click", () => loadDigest(true));
     }
+
+    // History dropdown
+    const historySelect = document.getElementById("digest-history");
+    if (historySelect) {
+        loadDigestHistory();
+        historySelect.addEventListener("change", () => {
+            const val = historySelect.value;
+            if (val === "today") {
+                loadDigest(false);
+            } else {
+                loadHistoricalDigest(val);
+            }
+        });
+    }
+
+    // Schedule button + modal
+    const scheduleBtn = document.getElementById("digest-schedule-btn");
+    if (scheduleBtn) {
+        scheduleBtn.addEventListener("click", showDigestScheduleModal);
+        loadDigestScheduleState();
+    }
+    const scheduleClose = document.getElementById("digest-schedule-close");
+    if (scheduleClose) {
+        scheduleClose.addEventListener("click", hideDigestScheduleModal);
+    }
+    const scheduleOverlay = document.getElementById("digest-schedule-overlay");
+    if (scheduleOverlay) {
+        scheduleOverlay.addEventListener("click", (e) => {
+            if (e.target === scheduleOverlay) hideDigestScheduleModal();
+        });
+    }
+    const scheduleSaveBtn = document.getElementById("schedule-save-btn");
+    if (scheduleSaveBtn) {
+        scheduleSaveBtn.addEventListener("click", saveDigestSchedule);
+    }
 }
 
 /* ---- Load digest ---- */
@@ -360,6 +395,13 @@ async function loadDigest(refresh) {
             const section = document.getElementById(`digest-${type.replace("_", "-")}`);
             if (section) section.style.display = "block";
         }
+
+        // Refresh history dropdown (new digest may have been generated)
+        loadDigestHistory();
+
+        // Reset history select to "Today"
+        const historySelect = document.getElementById("digest-history");
+        if (historySelect) historySelect.value = "today";
     } catch (err) {
         console.error("Digest load failed:", err);
         loadingEl.style.display = "none";
@@ -432,6 +474,180 @@ function timeAgo(then) {
     if (diffHr < 24) return `${diffHr}h ago`;
     if (diffDay === 1) return "yesterday";
     return `${diffDay} days ago`;
+}
+
+/* ---- Digest history ---- */
+
+async function loadDigestHistory() {
+    const select = document.getElementById("digest-history");
+    if (!select) return;
+    try {
+        const res = await fetch("/api/digest/history");
+        const json = await res.json();
+        if (!json.success) return;
+
+        // Clear all but "Today"
+        while (select.options.length > 1) select.remove(1);
+
+        const today = new Date().toISOString().slice(0, 10);
+        for (const entry of json.data) {
+            if (entry.date === today) continue; // skip today (already shown)
+            const opt = document.createElement("option");
+            opt.value = entry.date;
+            opt.textContent = formatDigestDate(entry.date);
+            select.appendChild(opt);
+        }
+    } catch (e) {
+        console.error("Failed to load digest history:", e);
+    }
+}
+
+function formatDigestDate(isoDate) {
+    const d = new Date(isoDate + "T12:00:00"); // noon to avoid timezone issues
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+}
+
+async function loadHistoricalDigest(dateStr) {
+    const loadingEl = document.getElementById("digest-loading");
+    const errorEl = document.getElementById("digest-error");
+    const contentEl = document.getElementById("digest-content");
+    const emptyEl = document.getElementById("digest-empty");
+    const refreshBtn = document.getElementById("digest-refresh");
+
+    loadingEl.style.display = "block";
+    errorEl.style.display = "none";
+    contentEl.style.display = "none";
+    emptyEl.style.display = "none";
+    if (refreshBtn) refreshBtn.disabled = true;
+
+    try {
+        const res = await fetch(`/api/digest/date/${dateStr}`);
+        if (!res.ok) {
+            const err = await res.json().catch(() => ({}));
+            throw new Error(err.detail || `HTTP ${res.status}`);
+        }
+
+        const json = await res.json();
+        if (!json.success || !json.data) throw new Error("Invalid response");
+
+        digestData = json.data;
+
+        renderDigestSection("ranked", digestData.ranked);
+        renderDigestSection("by_topic", digestData.by_topic);
+        renderDigestSection("by_entity", digestData.by_entity);
+        updateDigestBanner(digestData);
+
+        loadingEl.style.display = "none";
+        contentEl.style.display = "block";
+
+        const activeTab = document.querySelector(".digest-tab.active");
+        if (activeTab) {
+            const type = activeTab.dataset.type;
+            document.querySelectorAll(".digest-section").forEach((s) => (s.style.display = "none"));
+            const section = document.getElementById(`digest-${type.replace("_", "-")}`);
+            if (section) section.style.display = "block";
+        }
+    } catch (err) {
+        console.error("Historical digest load failed:", err);
+        loadingEl.style.display = "none";
+        document.getElementById("digest-error-msg").textContent =
+            `Failed to load digest for ${formatDigestDate(dateStr)}: ${err.message}`;
+        errorEl.style.display = "block";
+    } finally {
+        if (refreshBtn) refreshBtn.disabled = false;
+    }
+}
+
+/* ---- Digest schedule ---- */
+
+async function loadDigestScheduleState() {
+    try {
+        const res = await fetch("/api/settings/digest-schedule");
+        const json = await res.json();
+        if (!json.success) return;
+        const btn = document.getElementById("digest-schedule-btn");
+        if (btn && json.data.enabled) {
+            btn.classList.add("active");
+            btn.title = `Digest scheduled daily at ${json.data.time}`;
+        }
+    } catch (e) {
+        // ignore
+    }
+}
+
+async function showDigestScheduleModal() {
+    const overlay = document.getElementById("digest-schedule-overlay");
+    if (!overlay) return;
+
+    // Load current settings
+    try {
+        const res = await fetch("/api/settings/digest-schedule");
+        const json = await res.json();
+        if (json.success) {
+            document.getElementById("schedule-enabled").checked = json.data.enabled;
+            document.getElementById("schedule-time").value = json.data.time;
+            document.getElementById("schedule-unread-only").checked = json.data.unread_only;
+
+            const statusEl = document.getElementById("schedule-email-status");
+            if (statusEl) {
+                statusEl.textContent = json.data.email_configured
+                    ? "Email configured — digests will be emailed automatically"
+                    : "No email configured — digests will be generated but not emailed";
+            }
+        }
+    } catch (e) {
+        // use defaults
+    }
+
+    overlay.style.display = "flex";
+}
+
+function hideDigestScheduleModal() {
+    const overlay = document.getElementById("digest-schedule-overlay");
+    if (overlay) overlay.style.display = "none";
+}
+
+async function saveDigestSchedule() {
+    const enabled = document.getElementById("schedule-enabled").checked;
+    const time = document.getElementById("schedule-time").value;
+    const unreadOnly = document.getElementById("schedule-unread-only").checked;
+    const tzOffset = new Date().getTimezoneOffset();
+
+    const btn = document.getElementById("schedule-save-btn");
+    if (btn) btn.disabled = true;
+
+    try {
+        const res = await fetch("/api/settings/digest-schedule", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                enabled,
+                time,
+                unread_only: unreadOnly,
+                timezone_offset: tzOffset,
+            }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || "Save failed");
+
+        hideDigestScheduleModal();
+
+        // Update button state
+        const scheduleBtn = document.getElementById("digest-schedule-btn");
+        if (scheduleBtn) {
+            if (enabled) {
+                scheduleBtn.classList.add("active");
+                scheduleBtn.title = `Digest scheduled daily at ${time}`;
+            } else {
+                scheduleBtn.classList.remove("active");
+                scheduleBtn.title = "Schedule daily digest";
+            }
+        }
+    } catch (e) {
+        alert("Failed to save schedule: " + e.message);
+    } finally {
+        if (btn) btn.disabled = false;
+    }
 }
 
 /* ---- Inbox (articles list) ---- */

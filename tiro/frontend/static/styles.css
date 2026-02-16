@@ -1497,8 +1497,74 @@ main {
     border-color: var(--tiro-fg);
 }
 
-.digest-refresh {
+.digest-history-select {
     margin-left: auto;
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--tiro-border);
+    border-radius: 4px;
+    background: var(--tiro-bg);
+    color: var(--tiro-fg-secondary);
+    font-size: 0.8rem;
+    cursor: pointer;
+    max-width: 160px;
+}
+.digest-history-select:focus {
+    outline: 1px solid var(--tiro-accent);
+}
+
+.digest-schedule-btn {
+    padding: 0.3rem 0.7rem;
+    border: 1px solid var(--tiro-border);
+    border-radius: 4px;
+    background: none;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--tiro-muted);
+    transition: all 0.15s;
+    white-space: nowrap;
+}
+.digest-schedule-btn:hover {
+    background: var(--tiro-bg-hover);
+    color: var(--tiro-fg-secondary);
+}
+.digest-schedule-btn.active {
+    border-color: var(--tiro-accent);
+    color: var(--tiro-accent);
+    background: var(--tiro-bg-surface);
+}
+
+.schedule-form {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+.schedule-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--tiro-fg-secondary);
+}
+.schedule-label {
+    min-width: 60px;
+    color: var(--tiro-muted);
+}
+.schedule-time-input {
+    padding: 0.3rem 0.5rem;
+    border: 1px solid var(--tiro-border);
+    border-radius: 4px;
+    background: var(--tiro-bg);
+    color: var(--tiro-fg);
+    font-size: 0.85rem;
+}
+.schedule-email-status {
+    font-size: 0.8rem;
+    color: var(--tiro-muted);
+    padding: 0.4rem 0;
+    font-style: italic;
+}
+
+.digest-refresh {
     padding: 0.3rem 0.6rem;
     border: 1px solid var(--tiro-border);
     border-radius: 4px;
@@ -1507,6 +1573,7 @@ main {
     font-size: 1rem;
     color: var(--tiro-muted);
     transition: all 0.15s;
+    flex-shrink: 0;
 }
 
 .digest-refresh:hover {

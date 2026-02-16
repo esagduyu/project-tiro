@@ -3,6 +3,7 @@
 import asyncio
 import logging
 from contextlib import asynccontextmanager
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, Request
@@ -49,6 +50,75 @@ async def _imap_sync_loop(config: TiroConfig):
             logger.error("IMAP sync failed: %s", e)
 
 
+def _compute_sleep_until(time_str: str, tz_offset_minutes: int) -> float:
+    """Compute seconds until next occurrence of HH:MM in user's timezone.
+
+    Args:
+        time_str: Target time as "HH:MM"
+        tz_offset_minutes: JS-style getTimezoneOffset() (positive = west of UTC)
+    """
+    from datetime import timedelta
+
+    hour, minute = int(time_str[:2]), int(time_str[3:5])
+    now_utc = datetime.now(timezone.utc)
+
+    # Convert user's local target time to UTC
+    # JS getTimezoneOffset() returns minutes: UTC - local (e.g. EST = 300, CET = -60)
+    user_offset = timedelta(minutes=-tz_offset_minutes)
+    user_tz = timezone(user_offset)
+
+    # Build today's target in user's timezone, then convert to UTC
+    user_now = now_utc.astimezone(user_tz)
+    target_local = user_now.replace(hour=hour, minute=minute, second=0, microsecond=0)
+
+    # If target has already passed today, schedule for tomorrow
+    if target_local <= user_now:
+        target_local += timedelta(days=1)
+
+    target_utc = target_local.astimezone(timezone.utc)
+    delta = (target_utc - now_utc).total_seconds()
+    return max(delta, 60)  # At least 60 seconds to avoid tight loops
+
+
+async def _digest_schedule_loop(config: TiroConfig):
+    """Background task that generates + emails digests on schedule."""
+    from tiro.intelligence.digest import generate_digest
+    from tiro.intelligence.email_digest import send_digest_email
+
+    last_email_date = None
+
+    while True:
+        if not config.digest_schedule_enabled:
+            return
+
+        sleep_secs = _compute_sleep_until(config.digest_schedule_time, config.digest_timezone_offset)
+        logger.info("Digest scheduler: next run in %.0f seconds (at %s)", sleep_secs, config.digest_schedule_time)
+        await asyncio.sleep(sleep_secs)
+
+        # Re-check config (may have been disabled while sleeping)
+        if not config.digest_schedule_enabled:
+            return
+
+        today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+        try:
+            result = await asyncio.to_thread(
+                generate_digest, config, unread_only=config.digest_unread_only
+            )
+            logger.info("Scheduled digest generated for %s (%d sections)", today, len(result))
+
+            # Auto-email if SMTP configured and haven't sent today
+            if config.smtp_user and config.smtp_password and config.digest_email:
+                if last_email_date != today:
+                    try:
+                        await asyncio.to_thread(send_digest_email, config, True)
+                        last_email_date = today
+                        logger.info("Scheduled digest emailed to %s", config.digest_email)
+                    except Exception as e:
+                        logger.error("Scheduled digest email failed: %s", e)
+        except Exception as e:
+            logger.error("Scheduled digest generation failed: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database and vectorstore on startup."""
@@ -74,16 +144,24 @@ async def lifespan(app: FastAPI):
         sync_task = asyncio.create_task(_imap_sync_loop(config))
         logger.info("IMAP sync started: every %d minutes", config.imap_sync_interval)
 
+    # Start digest schedule background task if configured
+    digest_task = None
+    if config.digest_schedule_enabled:
+        digest_task = asyncio.create_task(_digest_schedule_loop(config))
+        logger.info("Digest schedule started: daily at %s", config.digest_schedule_time)
+    app.state.digest_task = digest_task
+
     logger.info("Tiro is ready — library at %s", config.library)
     yield
 
-    # Cancel sync task on shutdown
-    if sync_task:
-        sync_task.cancel()
-        try:
-            await sync_task
-        except asyncio.CancelledError:
-            pass
+    # Cancel background tasks on shutdown
+    for task in [sync_task, digest_task]:
+        if task and not task.done():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 
 def create_app(config: TiroConfig | None = None) -> FastAPI:

@@ -9,7 +9,37 @@
         <button class="digest-tab active" data-type="ranked">Ranked</button>
         <button class="digest-tab" data-type="by_topic">By Topic</button>
         <button class="digest-tab" data-type="by_entity">By Entity</button>
+        <select id="digest-history" class="digest-history-select" title="Browse previous digests">
+            <option value="today">Today</option>
+        </select>
+        <button id="digest-schedule-btn" class="digest-schedule-btn" title="Schedule daily digest">&#128340; Schedule</button>
         <button class="digest-refresh" id="digest-refresh" title="Regenerate digest">&#8635;</button>
+    </div>
+
+    <!-- Schedule modal -->
+    <div id="digest-schedule-overlay" class="save-overlay" style="display: none;">
+        <div class="save-modal">
+            <div class="save-modal-header">
+                <h3>Digest Schedule</h3>
+                <button id="digest-schedule-close" class="shortcuts-close">&times;</button>
+            </div>
+            <div class="save-modal-body">
+                <div class="schedule-form">
+                    <label class="schedule-row">
+                        <input type="checkbox" id="schedule-enabled"> Enable daily digest
+                    </label>
+                    <label class="schedule-row">
+                        <span class="schedule-label">Time</span>
+                        <input type="time" id="schedule-time" value="07:00" class="schedule-time-input">
+                    </label>
+                    <label class="schedule-row">
+                        <input type="checkbox" id="schedule-unread-only"> Unread articles only
+                    </label>
+                    <div class="schedule-row schedule-email-status" id="schedule-email-status"></div>
+                    <button id="schedule-save-btn" class="save-submit-btn">Save Schedule</button>
+                </div>
+            </div>
+        </div>
     </div>
     <div id="digest-loading" class="digest-loading" style="display: none;">
         <div class="digest-spinner"></div>

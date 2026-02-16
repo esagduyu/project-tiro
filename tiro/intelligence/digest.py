@@ -28,7 +28,7 @@ SECTION_PATTERNS = [
 MAX_ARTICLES_FOR_DIGEST = 50  # cap to avoid enormous prompts
 
 
-def _gather_articles(config: TiroConfig) -> tuple[list[dict], list[str], list[dict]]:
+def _gather_articles(config: TiroConfig, unread_only: bool = False) -> tuple[list[dict], list[str], list[dict]]:
     """Gather recent articles, VIP source names, and recent ratings from the database.
 
     Returns (articles, vip_sources, recent_ratings).
@@ -36,13 +36,15 @@ def _gather_articles(config: TiroConfig) -> tuple[list[dict], list[str], list[di
     conn = get_connection(config.db_path)
     try:
         # Get recent articles with source info (capped to avoid huge prompts)
-        rows = conn.execute("""
+        where_clause = "WHERE a.is_read = 0" if unread_only else ""
+        rows = conn.execute(f"""
             SELECT
                 a.id, a.title, a.summary, a.published_at, a.ingested_at,
                 a.is_read, a.rating, a.relevance_weight,
                 s.name AS source_name, s.is_vip
             FROM articles a
             LEFT JOIN sources s ON a.source_id = s.id
+            {where_clause}
             ORDER BY a.ingested_at DESC
             LIMIT ?
         """, (MAX_ARTICLES_FOR_DIGEST,)).fetchall()
@@ -221,7 +223,7 @@ def get_cached_digest(config: TiroConfig, today: str, digest_type: str | None = 
         conn.close()
 
 
-def generate_digest(config: TiroConfig) -> dict:
+def generate_digest(config: TiroConfig, unread_only: bool = False) -> dict:
     """Generate today's digest using Opus 4.6.
 
     Returns dict mapping digest_type -> {"content": str, "article_ids": list[int], "created_at": str}.
@@ -229,7 +231,7 @@ def generate_digest(config: TiroConfig) -> dict:
     if not os.environ.get("ANTHROPIC_API_KEY"):
         raise RuntimeError("ANTHROPIC_API_KEY not set — cannot generate digest")
 
-    articles, vip_sources, recent_ratings = _gather_articles(config)
+    articles, vip_sources, recent_ratings = _gather_articles(config, unread_only=unread_only)
 
     if not articles:
         raise ValueError("No articles in library — save some articles first")
@@ -277,3 +279,47 @@ def generate_digest(config: TiroConfig) -> dict:
         }
         for dtype, content in sections.items()
     }
+
+
+def get_digest_dates(config: TiroConfig) -> list[dict]:
+    """Get list of dates that have cached digests (most recent first, max 30)."""
+    conn = get_connection(config.db_path)
+    try:
+        rows = conn.execute("""
+            SELECT date, GROUP_CONCAT(digest_type) AS types, MAX(created_at) AS created_at
+            FROM digests
+            GROUP BY date
+            ORDER BY date DESC
+            LIMIT 30
+        """).fetchall()
+        return [
+            {"date": row["date"], "types": row["types"].split(","), "created_at": row["created_at"]}
+            for row in rows
+        ]
+    finally:
+        conn.close()
+
+
+def get_digest_by_date(config: TiroConfig, target_date: str) -> dict | None:
+    """Get cached digest for a specific date (exact match, no fallback).
+
+    Returns dict mapping digest_type -> {content, article_ids, created_at}, or None.
+    """
+    conn = get_connection(config.db_path)
+    try:
+        rows = conn.execute(
+            "SELECT digest_type, content, article_ids, created_at FROM digests WHERE date = ?",
+            (target_date,),
+        ).fetchall()
+        if not rows:
+            return None
+        return {
+            row["digest_type"]: {
+                "content": row["content"],
+                "article_ids": json.loads(row["article_ids"]),
+                "created_at": row["created_at"],
+            }
+            for row in rows
+        }
+    finally:
+        conn.close()

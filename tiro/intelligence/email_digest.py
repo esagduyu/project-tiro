@@ -12,8 +12,13 @@ from tiro.intelligence.digest import generate_digest, get_cached_digest
 logger = logging.getLogger(__name__)
 
 
-def send_digest_email(config: TiroConfig) -> dict:
+def send_digest_email(config: TiroConfig, all_sections: bool = False) -> dict:
     """Generate (or retrieve cached) today's digest and send it via email.
+
+    Args:
+        config: Tiro configuration
+        all_sections: If True, include all 3 digest sections (by_topic, by_entity, ranked).
+                      If False (default), send only the ranked digest.
 
     Returns a summary dict with status info.
     """
@@ -22,15 +27,37 @@ def send_digest_email(config: TiroConfig) -> dict:
 
     today = date.today().isoformat()
 
-    # Get or generate the ranked digest
-    cached = get_cached_digest(config, today, "ranked")
-    if cached and "ranked" in cached:
-        digest_content = cached["ranked"]["content"]
-        created_at = cached["ranked"]["created_at"]
+    if all_sections:
+        # Get or generate all 3 sections
+        cached = get_cached_digest(config, today)
+        if cached and "ranked" in cached:
+            all_data = cached
+            created_at = next(iter(cached.values()))["created_at"]
+        else:
+            all_data = generate_digest(config)
+            created_at = next(iter(all_data.values()))["created_at"]
+
+        # Combine sections: by_topic -> by_entity -> ranked
+        section_order = [
+            ("by_topic", "Grouped by Topic"),
+            ("by_entity", "Grouped by Entity"),
+            ("ranked", "Ranked by Importance"),
+        ]
+        parts = []
+        for key, heading in section_order:
+            if key in all_data and all_data[key].get("content"):
+                parts.append(f"## {heading}\n\n{all_data[key]['content']}")
+        digest_content = "\n\n---\n\n".join(parts) if parts else "*No digest content available.*"
     else:
-        result = generate_digest(config)
-        digest_content = result["ranked"]["content"]
-        created_at = result["ranked"]["created_at"]
+        # Get or generate the ranked digest only
+        cached = get_cached_digest(config, today, "ranked")
+        if cached and "ranked" in cached:
+            digest_content = cached["ranked"]["content"]
+            created_at = cached["ranked"]["created_at"]
+        else:
+            result = generate_digest(config)
+            digest_content = result["ranked"]["content"]
+            created_at = result["ranked"]["created_at"]
 
     # Convert markdown digest to HTML email
     html_body = _digest_to_html(digest_content, config)
