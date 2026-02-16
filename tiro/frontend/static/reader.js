@@ -601,28 +601,16 @@ function setupGenerateButton(articleId) {
     const genBtn = document.getElementById("audio-generate-btn");
     genDiv.style.display = "";
 
-    genBtn.addEventListener("click", async () => {
+    genBtn.addEventListener("click", () => {
+        // Skip the generate step — just point audio at the streaming endpoint
+        // and start playing. The GET /audio endpoint streams from OpenAI if not
+        // cached, so the browser starts playing within ~1-2 seconds.
         genDiv.style.display = "none";
-        document.getElementById("audio-generating").style.display = "flex";
+        showAudioControls(articleId, null);
 
-        try {
-            const res = await fetch(`/api/articles/${articleId}/audio/generate`, {
-                method: "POST",
-            });
-            const json = await res.json();
-
-            if (!res.ok || !json.success) {
-                throw new Error(json.detail || "Generation failed");
-            }
-
-            document.getElementById("audio-generating").style.display = "none";
-            showAudioControls(articleId, json.data.duration_seconds);
-        } catch (err) {
-            console.error("Audio generation failed:", err);
-            document.getElementById("audio-generating").style.display = "none";
-            genDiv.style.display = "";
-            genBtn.textContent = "Generation failed — retry";
-        }
+        // Auto-play
+        const audio = document.getElementById("audio-el");
+        audio.play().catch(() => {});
     });
 }
 
