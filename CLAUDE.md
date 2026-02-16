@@ -96,10 +96,15 @@ lsof -ti :8000 | xargs kill -9
 | POST | /api/ingest/imap | Check IMAP inbox for new newsletters and ingest them |
 | GET | /api/settings/email | Get email config (passwords masked) |
 | POST | /api/settings/email | Update email config (Gmail address, app password, features) |
+| GET | /api/articles/{id}/audio/status | Check if TTS audio is cached |
+| POST | /api/articles/{id}/audio/generate | Generate TTS audio via OpenAI (cached) |
+| GET | /api/articles/{id}/audio | Stream cached MP3 file |
+| GET | /api/settings/tts | Get TTS config (key masked) |
+| POST | /api/settings/tts | Update TTS config (OpenAI key, voice, model) |
 
 ## Current Status
 
-**Completed:** All 18 checkpoints
+**Completed:** All 19 checkpoints
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
@@ -122,6 +127,7 @@ Checkpoint tracker:
 [x] 16. Packaging
 [x] 17. Digest email
 [x] 18. Gmail IMAP + SMTP integration
+[x] 19. TTS audio player
 -->
 
 ## Playwright MCP
@@ -187,4 +193,5 @@ Playwright MCP is configured at user scope. Use it to visually verify UI changes
 - **Digest email** (Checkpoint 17): `tiro/intelligence/email_digest.py` converts markdown digest to HTML email and sends via SMTP. `POST /api/digest/send` triggers manually. Config: `digest_email`, `smtp_host` (default localhost), `smtp_port` (default 1025). Uses `smtplib`. HTML email has inline styles, absolute article links (`http://host:port/articles/N`), Tiro-branded header/footer. For dev/demo, run mailhog: `docker run -p 1025:1025 -p 8025:8025 mailhog/mailhog`. Returns 400 if no `digest_email` configured, 503 if SMTP connection refused.
 - **Published date display**: Inbox, sorting, and related articles all use `published_at || ingested_at` so email articles show their original send date, not ingestion date. Backend SQL sort uses `COALESCE(published_at, ingested_at)`.
 - **Gmail IMAP + SMTP integration** (Checkpoint 18): Bidirectional email integration. SMTP: `send_digest_email()` supports STARTTLS + login when `smtp_user`/`smtp_password` configured (Gmail App Password); falls back to plain SMTP (mailhog) without credentials. IMAP: `tiro/ingestion/imap.py` with `check_imap_inbox(config)` connects via `IMAP4_SSL`, fetches UNSEEN from configured label, passes raw bytes to existing `parse_eml()` → `process_article()`, marks processed as Seen, leaves failed as Unseen for retry. Duplicates detected by title+sender (same as email ingestion). CLI: `tiro setup-email` (interactive Gmail setup — address, app password, features, label), `tiro check-email` (trigger IMAP check). `tiro init` offers email setup after API key. API: `POST /api/ingest/imap` (trigger IMAP check), `GET /api/settings/email` (read config, passwords masked), `POST /api/settings/email` (update config.yaml + live config). Settings page at `/settings`: status cards (Send Digests / Receive Newsletters with green dot), action buttons (Check email now, Send test digest), Configure Email modal with form. Toast notifications for feedback. Keyboard: `b`/`Esc` back, `?` shortcuts. Nav link added to header (Settings + Stats). Config fields: `smtp_user`, `smtp_password`, `smtp_use_tls`, `imap_host`, `imap_port`, `imap_user`, `imap_password`, `imap_label`, `imap_enabled`.
-- **Browser cache busting**: Currently at v=27 in base.html and reader.html. ALWAYS increment when modifying static files.
+- **TTS audio player** (Checkpoint 19): `tiro/tts.py` handles chunking articles at paragraph boundaries (~4000 chars), calling OpenAI TTS API via httpx, concatenating MP3 chunks, caching to `{library}/audio/`. SQLite `audio` table (article_id PK) links cached files to articles. Frontend player bar between summary and body in reader.html. `<audio>` element for MP3 playback. `speechSynthesis` fallback when no OpenAI key. Config: `openai_api_key`, `tts_voice` (default nova), `tts_model` (default tts-1). Settings page TTS section. `tiro init` prompts for OpenAI key. Keyboard: `p` toggles play/pause. MP3 duration estimated from file size (~128kbps). Four-store consistency: article deletion must clean up audio row + MP3 file.
+- **Browser cache busting**: Currently at v=28 in base.html and reader.html. ALWAYS increment when modifying static files.
