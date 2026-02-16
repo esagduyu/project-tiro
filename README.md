@@ -1,10 +1,18 @@
-# Tiro
+<p align="center">
+  <img src="tiro/frontend/static/logo-128.png" alt="Tiro" width="80" height="80">
+</p>
 
-**A local-first reading OS for the AI age.**
+<h1 align="center">Tiro</h1>
+
+<p align="center"><strong>A local-first reading OS for the AI age.</strong></p>
+
+<p align="center"><em>"...without you the oracle was dumb."</em><br><small>— Cicero to Tiro, 53 BC</small></p>
+
+---
 
 Tiro saves web pages and email newsletters as clean markdown on your machine, enriches them with AI-extracted tags, entities, and summaries, and uses Claude Opus 4.6 for deep cross-document reasoning — daily digests that find contradictions between sources, trust analysis on demand, and learned reading preferences that adapt to you.
 
-Named after Cicero's freedman who preserved and organized his master's works for posterity, Tiro does the same for your digital knowledge.
+Named after [Cicero's freedman](https://www.gutenberg.org/files/21200/21200-h/21200-h.htm) who preserved and organized his master's works for posterity, Tiro does the same for your digital knowledge.
 
 *Built solo for the [Built with Opus 4.6: a Claude Code Hackathon](https://cerebralvalley.ai/e/claude-code-hackathon) (Feb 10–16, 2026) — a week-long virtual hackathon by Anthropic and Cerebral Valley celebrating one year of Claude Code.*
 
@@ -317,3 +325,7 @@ project-tiro/
 ## License
 
 MIT
+
+---
+
+<p align="center"><em>"...without you the oracle was dumb."</em><br><small>— Cicero to Tiro, 53 BC</small></p>

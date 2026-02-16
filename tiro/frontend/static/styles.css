@@ -2805,4 +2805,26 @@ main {
     .digest-container { padding: 0.75rem; }
     /* Stats: stack */
     .stats-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
+    .tiro-footer { padding: 2rem 0.75rem 1rem; }
+}
+
+/* --- Footer --- */
+
+.tiro-footer {
+    padding: 3rem 0 1.5rem;
+    text-align: center;
+    font-size: 0.8rem;
+    color: var(--tiro-muted);
+    letter-spacing: 0.02em;
+}
+
+.tiro-footer-quote {
+    font-style: italic;
+}
+
+.tiro-footer-attr {
+    display: block;
+    margin-top: 0.15rem;
+    font-size: 0.72rem;
+    opacity: 0.7;
 }
