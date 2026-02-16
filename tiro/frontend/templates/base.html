@@ -6,8 +6,8 @@
     <title>{% block title %}Tiro{% endblock %}</title>
     <link rel="icon" href="/static/favicon.ico" sizes="any">
     <link rel="icon" href="/static/favicon-32.png" type="image/png" sizes="32x32">
-    <link id="theme-css" rel="stylesheet" href="/static/themes/papyrus.css?v=40">
-    <link rel="stylesheet" href="/static/styles.css?v=40">
+    <link id="theme-css" rel="stylesheet" href="/static/themes/papyrus.css?v=41">
+    <link rel="stylesheet" href="/static/styles.css?v=41">
     <script>
     // Apply theme before render to prevent flash
     (function() {
@@ -15,7 +15,7 @@
         if (!mode) mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', mode);
         var theme = mode === 'dark' ? 'roman-night' : 'papyrus';
-        document.getElementById('theme-css').href = '/static/themes/' + theme + '.css?v=40';
+        document.getElementById('theme-css').href = '/static/themes/' + theme + '.css?v=41';
     })();
     </script>
 </head>
@@ -27,6 +27,10 @@
             <span class="sidebar-title">Tiro</span>
         </div>
         <div class="sidebar-nav">
+            <button id="save-btn" class="sidebar-item sidebar-save-btn">
+                <span class="sidebar-icon">&#43;</span>
+                <span class="sidebar-label">Save</span>
+            </button>
             <a href="/inbox" class="sidebar-item {% block nav_inbox %}{% endblock %}">
                 <span class="sidebar-icon">&#9636;</span>
                 <span class="sidebar-label">Inbox</span>
@@ -79,6 +83,34 @@
         </footer>
     </main>
 
+    <!-- Save item modal -->
+    <div id="save-overlay" class="save-overlay" style="display: none;">
+        <div class="save-modal">
+            <div class="save-modal-header">
+                <h3>Save to Tiro</h3>
+                <button id="save-modal-close" class="shortcuts-close">&times;</button>
+            </div>
+            <div class="save-modal-body">
+                <div class="save-tab-row">
+                    <button class="save-tab active" data-tab="url">URL</button>
+                    <button class="save-tab" data-tab="email">.eml File</button>
+                </div>
+                <div id="save-tab-url" class="save-tab-content">
+                    <input type="text" id="save-url-input" class="save-url-input" placeholder="Paste a URL..." autocomplete="off">
+                    <button id="save-url-btn" class="save-submit-btn">Save</button>
+                </div>
+                <div id="save-tab-email" class="save-tab-content" style="display: none;">
+                    <div id="save-drop-zone" class="save-drop-zone">
+                        <p class="save-drop-text">Drop .eml file here</p>
+                        <p class="save-drop-sub">or <label for="save-file-input" class="save-file-label">choose file</label></p>
+                        <input type="file" id="save-file-input" accept=".eml" style="display: none;">
+                    </div>
+                </div>
+                <div id="save-status" class="save-status" style="display: none;"></div>
+            </div>
+        </div>
+    </div>
+
     <!-- Keyboard shortcuts overlay -->
     <div id="shortcuts-overlay" class="shortcuts-overlay" style="display: none;">
         <div class="shortcuts-modal">
@@ -90,6 +122,6 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/static/app.js?v=40"></script>
+    <script src="/static/app.js?v=41"></script>
 </body>
 </html>

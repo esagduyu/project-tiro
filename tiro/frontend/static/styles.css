@@ -158,6 +158,183 @@ body {
     color: var(--tiro-fg-secondary);
 }
 
+/* --- Save button (sidebar) --- */
+
+.sidebar-save-btn {
+    background: var(--tiro-accent);
+    color: white;
+    border: none;
+    border-left: 3px solid var(--tiro-accent);
+    cursor: pointer;
+    margin: 0.25rem 0.6rem 0.4rem;
+    border-radius: 6px;
+    font-weight: 600;
+    justify-content: center;
+}
+
+.sidebar-save-btn:hover {
+    opacity: 0.9;
+    background: var(--tiro-accent);
+    color: white;
+}
+
+.sidebar-save-btn .sidebar-icon {
+    font-size: 1.2rem;
+    font-weight: 700;
+}
+
+/* --- Save modal --- */
+
+.save-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.save-modal {
+    background: var(--tiro-bg-surface);
+    border: 1px solid var(--tiro-border);
+    border-radius: 10px;
+    width: 420px;
+    max-width: 92vw;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+}
+
+.save-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--tiro-border);
+}
+
+.save-modal-header h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--tiro-fg);
+}
+
+.save-modal-body {
+    padding: 1.25rem;
+}
+
+.save-tab-row {
+    display: flex;
+    gap: 0;
+    margin-bottom: 1rem;
+    border: 1px solid var(--tiro-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.save-tab {
+    flex: 1;
+    padding: 0.5rem;
+    border: none;
+    background: var(--tiro-bg);
+    color: var(--tiro-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+}
+
+.save-tab.active {
+    background: var(--tiro-accent);
+    color: white;
+}
+
+.save-url-input {
+    width: 100%;
+    padding: 0.6rem 0.75rem;
+    border: 1px solid var(--tiro-border);
+    border-radius: 6px;
+    font-size: 0.9rem;
+    background: var(--tiro-bg);
+    color: var(--tiro-fg);
+    outline: none;
+    margin-bottom: 0.75rem;
+}
+
+.save-url-input:focus {
+    border-color: var(--tiro-accent);
+}
+
+.save-submit-btn {
+    width: 100%;
+    padding: 0.6rem;
+    background: var(--tiro-accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.15s;
+}
+
+.save-submit-btn:hover { opacity: 0.9; }
+.save-submit-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.save-drop-zone {
+    border: 2px dashed var(--tiro-border);
+    border-radius: 8px;
+    padding: 2rem 1rem;
+    text-align: center;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.save-drop-zone.dragover {
+    border-color: var(--tiro-accent);
+    background: rgba(196, 91, 62, 0.06);
+}
+
+.save-drop-text {
+    font-size: 0.95rem;
+    color: var(--tiro-fg-secondary);
+    margin-bottom: 0.3rem;
+}
+
+.save-drop-sub {
+    font-size: 0.8rem;
+    color: var(--tiro-muted);
+}
+
+.save-file-label {
+    color: var(--tiro-accent);
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+.save-status {
+    margin-top: 0.75rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 6px;
+    font-size: 0.85rem;
+}
+
+.save-status.success {
+    background: rgba(22, 163, 74, 0.1);
+    color: #16a34a;
+    border: 1px solid rgba(22, 163, 74, 0.2);
+}
+
+.save-status.error {
+    background: rgba(220, 38, 38, 0.08);
+    color: #dc2626;
+    border: 1px solid rgba(220, 38, 38, 0.15);
+}
+
+.save-status.loading {
+    background: rgba(37, 99, 235, 0.06);
+    color: var(--tiro-muted);
+    border: 1px solid var(--tiro-border);
+}
+
 /* Mobile header (hidden on desktop) */
 .mobile-header {
     display: none;

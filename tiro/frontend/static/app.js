@@ -68,6 +68,160 @@ async function updateUnreadBadge() {
     } catch (e) {}
 }
 
+/* ---- Save modal ---- */
+
+function openSaveModal() {
+    const overlay = document.getElementById('save-overlay');
+    if (!overlay) return;
+    overlay.style.display = 'flex';
+    // Reset state
+    const urlInput = document.getElementById('save-url-input');
+    if (urlInput) { urlInput.value = ''; urlInput.focus(); }
+    const status = document.getElementById('save-status');
+    if (status) status.style.display = 'none';
+    const btn = document.getElementById('save-url-btn');
+    if (btn) { btn.disabled = false; btn.textContent = 'Save'; }
+    // Reset to URL tab
+    switchSaveTab('url');
+}
+
+function closeSaveModal() {
+    const overlay = document.getElementById('save-overlay');
+    if (overlay) overlay.style.display = 'none';
+}
+
+function switchSaveTab(tab) {
+    document.querySelectorAll('.save-tab').forEach(t => {
+        t.classList.toggle('active', t.dataset.tab === tab);
+    });
+    document.getElementById('save-tab-url').style.display = tab === 'url' ? '' : 'none';
+    document.getElementById('save-tab-email').style.display = tab === 'email' ? '' : 'none';
+    const status = document.getElementById('save-status');
+    if (status) status.style.display = 'none';
+    if (tab === 'url') {
+        document.getElementById('save-url-input')?.focus();
+    }
+}
+
+function showSaveStatus(msg, type) {
+    const el = document.getElementById('save-status');
+    if (!el) return;
+    el.textContent = msg;
+    el.className = 'save-status ' + type;
+    el.style.display = '';
+}
+
+async function submitURL() {
+    const input = document.getElementById('save-url-input');
+    const btn = document.getElementById('save-url-btn');
+    const url = input?.value.trim();
+    if (!url) return;
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    showSaveStatus('Fetching and processing...', 'loading');
+    try {
+        const res = await fetch('/api/ingest/url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ url }),
+        });
+        const json = await res.json();
+        if (res.status === 409) {
+            showSaveStatus('Already saved: ' + (json.data?.title || url), 'error');
+            btn.disabled = false;
+            btn.textContent = 'Save';
+            return;
+        }
+        if (!res.ok) throw new Error(json.detail || 'Failed to save');
+        showSaveStatus('Saved: ' + (json.data?.title || 'Article'), 'success');
+        btn.textContent = 'Saved';
+        input.value = '';
+        updateUnreadBadge();
+        // Refresh inbox if we're on it
+        if (document.getElementById('article-list')) {
+            loadInbox();
+            loadFilters();
+        }
+    } catch (e) {
+        showSaveStatus(e.message || 'Failed to save URL', 'error');
+        btn.disabled = false;
+        btn.textContent = 'Save';
+    }
+}
+
+async function uploadEml(file) {
+    if (!file || !file.name.endsWith('.eml')) {
+        showSaveStatus('Please select a .eml file', 'error');
+        return;
+    }
+    showSaveStatus('Processing ' + file.name + '...', 'loading');
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+        const res = await fetch('/api/ingest/email', {
+            method: 'POST',
+            body: formData,
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.detail || 'Failed to import');
+        showSaveStatus('Saved: ' + (json.data?.title || file.name), 'success');
+        updateUnreadBadge();
+        if (document.getElementById('article-list')) {
+            loadInbox();
+            loadFilters();
+        }
+    } catch (e) {
+        showSaveStatus(e.message || 'Failed to import email', 'error');
+    }
+}
+
+function setupSaveModal() {
+    const overlay = document.getElementById('save-overlay');
+    if (!overlay) return;
+
+    // Open
+    document.getElementById('save-btn')?.addEventListener('click', openSaveModal);
+
+    // Close
+    document.getElementById('save-modal-close')?.addEventListener('click', closeSaveModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeSaveModal(); });
+
+    // Tabs
+    document.querySelectorAll('.save-tab').forEach(tab => {
+        tab.addEventListener('click', () => switchSaveTab(tab.dataset.tab));
+    });
+
+    // URL submit
+    document.getElementById('save-url-btn')?.addEventListener('click', submitURL);
+    document.getElementById('save-url-input')?.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') { e.preventDefault(); submitURL(); }
+        if (e.key === 'Escape') { e.preventDefault(); closeSaveModal(); }
+    });
+
+    // File input
+    const fileInput = document.getElementById('save-file-input');
+    fileInput?.addEventListener('change', () => {
+        if (fileInput.files.length > 0) uploadEml(fileInput.files[0]);
+    });
+
+    // Drag and drop
+    const dropZone = document.getElementById('save-drop-zone');
+    if (dropZone) {
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        });
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('dragover');
+        });
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            if (e.dataTransfer.files.length > 0) uploadEml(e.dataTransfer.files[0]);
+        });
+    }
+}
+
 /* ---- Init ---- */
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -85,6 +239,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Unread badge
     updateUnreadBadge();
+
+    // Save modal
+    setupSaveModal();
 
     // Page-specific init
     if (document.getElementById("article-list")) {
@@ -1248,6 +1405,13 @@ function handleInboxKeydown(e) {
         return;
     }
 
+    // Don't capture when save modal is open (except Escape to close)
+    const saveOverlay = document.getElementById("save-overlay");
+    if (saveOverlay && saveOverlay.style.display !== "none") {
+        if (e.key === "Escape") { closeSaveModal(); e.preventDefault(); }
+        return;
+    }
+
     // Don't capture when shortcuts overlay is open (except ? and Escape to close)
     const overlay = document.getElementById("shortcuts-overlay");
     if (overlay && overlay.style.display !== "none") {
@@ -1261,6 +1425,10 @@ function handleInboxKeydown(e) {
     const cards = getVisibleCards();
 
     switch (e.key) {
+        case "n":
+            e.preventDefault();
+            openSaveModal();
+            break;
         case "j":
             e.preventDefault();
             moveSelection(cards, 1);
@@ -1403,6 +1571,7 @@ const INBOX_SHORTCUTS = [
     { keys: ["1"], desc: "Rate dislike" },
     { keys: ["2"], desc: "Rate like" },
     { keys: ["3"], desc: "Rate love" },
+    { keys: ["n"], desc: "Save new item (URL or email)" },
     { keys: ["c"], desc: "Classify / reclassify inbox" },
     { keys: ["f"], desc: "Toggle filter panel" },
     { keys: ["r"], desc: "Regenerate digest (in digest view)" },
