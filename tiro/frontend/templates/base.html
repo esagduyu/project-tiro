@@ -1,24 +1,75 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Tiro{% endblock %}</title>
-    <link rel="stylesheet" href="/static/styles.css?v=29">
+    <link id="theme-css" rel="stylesheet" href="/static/themes/papyrus.css?v=30">
+    <link rel="stylesheet" href="/static/styles.css?v=30">
+    <script>
+    // Apply theme before render to prevent flash
+    (function() {
+        var mode = localStorage.getItem('tiro-mode');
+        if (!mode) mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', mode);
+        var theme = mode === 'dark' ? 'roman-night' : 'papyrus';
+        document.getElementById('theme-css').href = '/static/themes/' + theme + '.css?v=30';
+    })();
+    </script>
 </head>
 <body>
-    <header>
-        <nav>
-            <a href="/" class="logo">Tiro</a>
-            <span class="tagline">your reading, organized</span>
-            <a href="/graph" class="nav-link nav-link-end">Graph</a>
-            <a href="/settings" class="nav-link">Settings</a>
-            <a href="/stats" class="nav-link">Stats</a>
-        </nav>
+    <!-- Left sidebar navigation -->
+    <nav id="sidebar" class="sidebar">
+        <div class="sidebar-brand">
+            <a href="/inbox" class="sidebar-logo">T</a>
+            <span class="sidebar-title">Tiro</span>
+        </div>
+        <div class="sidebar-nav">
+            <a href="/inbox" class="sidebar-item {% block nav_inbox %}{% endblock %}">
+                <span class="sidebar-icon">&#9636;</span>
+                <span class="sidebar-label">Inbox</span>
+                <span id="unread-badge" class="sidebar-badge" style="display:none;"></span>
+            </a>
+            <a href="/digest" class="sidebar-item {% block nav_digest %}{% endblock %}">
+                <span class="sidebar-icon">&#9673;</span>
+                <span class="sidebar-label">Digest</span>
+            </a>
+            <a href="/graph" class="sidebar-item {% block nav_graph %}{% endblock %}">
+                <span class="sidebar-icon">&#9678;</span>
+                <span class="sidebar-label">Graph</span>
+            </a>
+            <a href="/stats" class="sidebar-item {% block nav_stats %}{% endblock %}">
+                <span class="sidebar-icon">&#9637;</span>
+                <span class="sidebar-label">Stats</span>
+            </a>
+            <a href="/settings" class="sidebar-item {% block nav_settings %}{% endblock %}">
+                <span class="sidebar-icon">&#9881;</span>
+                <span class="sidebar-label">Settings</span>
+            </a>
+        </div>
+        <div class="sidebar-footer">
+            <button id="theme-toggle" class="sidebar-theme-toggle" title="Toggle dark mode">&#9728;</button>
+            <a href="https://github.com/esagduyu/project-tiro" target="_blank" rel="noopener" class="sidebar-about">
+                <span class="sidebar-icon">&#9432;</span>
+                <span class="sidebar-label">About Tiro</span>
+            </a>
+        </div>
+    </nav>
+
+    <!-- Mobile top bar -->
+    <header id="mobile-header" class="mobile-header">
+        <button id="mobile-menu-btn" class="mobile-menu-btn">&#9776;</button>
+        <span class="mobile-brand">Tiro</span>
+        <button id="mobile-theme-toggle" class="mobile-theme-toggle">&#9728;</button>
     </header>
-    <main>
+
+    <!-- Sidebar overlay for mobile -->
+    <div id="sidebar-overlay" class="sidebar-overlay"></div>
+
+    <main class="content {% block content_class %}{% endblock %}">
         {% block content %}{% endblock %}
     </main>
+
     <!-- Keyboard shortcuts overlay -->
     <div id="shortcuts-overlay" class="shortcuts-overlay" style="display: none;">
         <div class="shortcuts-modal">
@@ -30,6 +81,6 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/static/app.js?v=29"></script>
+    <script src="/static/app.js?v=30"></script>
 </body>
 </html>
