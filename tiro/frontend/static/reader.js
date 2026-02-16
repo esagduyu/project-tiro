@@ -639,16 +639,24 @@ function showAudioControls(articleId, durationSeconds) {
 
     playBtn.addEventListener("click", toggleAudioPlayback);
 
+    // Show spinner while buffering, pause icon only when audio actually plays
     audio.addEventListener("play", () => {
+        playBtn.innerHTML = '<div class="audio-btn-spinner"></div>';
+        playBtn.disabled = true;
+    });
+    audio.addEventListener("playing", () => {
         playBtn.innerHTML = "&#9646;&#9646;";
+        playBtn.disabled = false;
         audioState.playing = true;
     });
     audio.addEventListener("pause", () => {
         playBtn.innerHTML = "&#9654;";
+        playBtn.disabled = false;
         audioState.playing = false;
     });
     audio.addEventListener("ended", () => {
         playBtn.innerHTML = "&#9654;";
+        playBtn.disabled = false;
         audioState.playing = false;
         progressFill.style.width = "0%";
     });
