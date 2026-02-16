@@ -708,6 +708,8 @@ function toggleAudioPlayback() {
 
 /* --- speechSynthesis fallback --- */
 
+let fallbackState = { cleanText: "", charIndex: 0, rate: 1, startTime: 0 };
+
 function setupFallbackPlayer(articleContent) {
     if (!window.speechSynthesis) return;
 
@@ -723,19 +725,37 @@ function setupFallbackPlayer(articleContent) {
         const controls = document.getElementById("audio-controls");
         controls.style.display = "flex";
 
-        document.querySelector(".audio-progress-wrap").style.display = "none";
-        document.getElementById("audio-speed-btn").style.display = "none";
-        document.getElementById("audio-time").textContent = "";
-
         // Wire up play/pause button for fallback
         document.getElementById("audio-play-btn").addEventListener("click", toggleAudioPlayback);
 
-        startFallbackSpeech(articleContent);
+        // Wire up speed button
+        const speedBtn = document.getElementById("audio-speed-btn");
+        const speeds = [1, 1.25, 1.5, 2];
+        let speedIndex = 0;
+        speedBtn.addEventListener("click", () => {
+            speedIndex = (speedIndex + 1) % speeds.length;
+            fallbackState.rate = speeds[speedIndex];
+            speedBtn.textContent = speeds[speedIndex] + "x";
+            // Restart speech at current position with new rate
+            if (speechSynthesis.speaking || speechSynthesis.paused) {
+                speechSynthesis.cancel();
+                startFallbackSpeechFrom(fallbackState.charIndex);
+            }
+        });
+
+        // Estimate duration (~150 words per minute)
+        const clean = stripMarkdownForSpeech(articleContent);
+        fallbackState.cleanText = clean;
+        const wordCount = clean.split(/\s+/).length;
+        const estSeconds = (wordCount / 150) * 60;
+        document.getElementById("audio-time").textContent = "0:00 / " + formatAudioTime(estSeconds);
+
+        startFallbackSpeechFrom(0);
     });
 }
 
-function startFallbackSpeech(text) {
-    const clean = text
+function stripMarkdownForSpeech(text) {
+    return text
         .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
         .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
         .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
@@ -743,16 +763,46 @@ function startFallbackSpeech(text) {
         .replace(/`[^`]+`/g, "")
         .replace(/<[^>]+>/g, "")
         .trim();
+}
 
-    const utterance = new SpeechSynthesisUtterance(clean);
+function startFallbackSpeechFrom(charIndex) {
+    const text = fallbackState.cleanText.substring(charIndex);
+    if (!text) return;
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = fallbackState.rate;
     audioState.playing = true;
+    fallbackState.startTime = Date.now();
 
     const playBtn = document.getElementById("audio-play-btn");
+    const progressFill = document.getElementById("audio-progress-fill");
+    const timeEl = document.getElementById("audio-time");
+    const totalChars = fallbackState.cleanText.length;
+
+    // Estimate total duration at current rate
+    const wordCount = fallbackState.cleanText.split(/\s+/).length;
+    const estTotalSeconds = (wordCount / 150) * 60 / fallbackState.rate;
+
     playBtn.innerHTML = "&#9646;&#9646;";
+
+    // Track progress via boundary events
+    utterance.onboundary = (e) => {
+        const currentChar = charIndex + e.charIndex;
+        fallbackState.charIndex = currentChar;
+        const pct = (currentChar / totalChars) * 100;
+        progressFill.style.width = pct + "%";
+
+        // Estimate elapsed time from progress percentage
+        const elapsed = (pct / 100) * estTotalSeconds;
+        timeEl.textContent = formatAudioTime(elapsed) + " / " + formatAudioTime(estTotalSeconds);
+    };
 
     utterance.onend = () => {
         playBtn.innerHTML = "&#9654;";
         audioState.playing = false;
+        progressFill.style.width = "100%";
+        timeEl.textContent = formatAudioTime(estTotalSeconds) + " / " + formatAudioTime(estTotalSeconds);
+        fallbackState.charIndex = 0;
     };
 
     speechSynthesis.speak(utterance);
