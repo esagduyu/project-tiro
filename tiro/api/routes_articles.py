@@ -70,7 +70,7 @@ async def list_articles(
     request: Request,
     page: int = 1,
     per_page: int = 0,
-    sort: str = "newest",
+    sort: str = "unread",
     is_read: bool | None = None,
     is_vip: bool | None = None,
     ai_tier: str | None = None,
@@ -204,10 +204,11 @@ async def list_articles(
             ).fetchone()[0]
             return {"success": True, "data": {"count": count}}
 
-        # Sort
+        # Sort — VIP is always second-order priority within each sort mode
         sort_sql = {
-            "newest": "s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) DESC",
-            "oldest": "s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) ASC",
+            "unread": "a.is_read ASC, s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) DESC",
+            "newest": "COALESCE(a.published_at, a.ingested_at) DESC, s.is_vip DESC",
+            "oldest": "COALESCE(a.published_at, a.ingested_at) ASC, s.is_vip DESC",
             "importance": """
                 CASE a.ai_tier
                     WHEN 'must-read' THEN 0
@@ -216,7 +217,7 @@ async def list_articles(
                     ELSE 3
                 END ASC, s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) DESC
             """,
-        }.get(sort, "s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) DESC")
+        }.get(sort, "a.is_read ASC, s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) DESC")
 
         # Total count for pagination
         total = conn.execute(

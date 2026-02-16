@@ -2,7 +2,7 @@
 
 let digestData = null; // cached digest response
 let digestLoaded = false;
-let currentSort = "newest"; // "newest" | "oldest" | "importance"
+let currentSort = "unread"; // "unread" | "newest" | "oldest" | "importance"
 let cachedArticles = []; // store articles for re-sorting without re-fetching
 let selectedIndex = -1; // keyboard-selected article index
 let showArchived = false; // whether to include decayed articles
@@ -549,26 +549,39 @@ function renderSortedInbox() {
 
 function sortArticles(articles, mode) {
     const copy = [...articles];
-    if (mode === "newest") {
+    const dateOf = (a) => new Date(a.published_at || a.ingested_at);
+    const vipCmp = (a, b) => (b.is_vip ? 1 : 0) - (a.is_vip ? 1 : 0);
+
+    if (mode === "unread") {
         copy.sort((a, b) => {
-            // VIP pinned first, then newest
-            if (a.is_vip !== b.is_vip) return b.is_vip ? 1 : -1;
-            return new Date(b.published_at || b.ingested_at) - new Date(a.published_at || a.ingested_at);
+            // Unread first, then VIP, then newest
+            if (a.is_read !== b.is_read) return a.is_read ? 1 : -1;
+            const v = vipCmp(a, b);
+            if (v !== 0) return v;
+            return dateOf(b) - dateOf(a);
+        });
+    } else if (mode === "newest") {
+        copy.sort((a, b) => {
+            // Pure recency, VIP as tiebreaker
+            const d = dateOf(b) - dateOf(a);
+            if (d !== 0) return d;
+            return vipCmp(a, b);
         });
     } else if (mode === "oldest") {
         copy.sort((a, b) => {
-            if (a.is_vip !== b.is_vip) return b.is_vip ? 1 : -1;
-            return new Date(a.published_at || a.ingested_at) - new Date(b.published_at || b.ingested_at);
+            const d = dateOf(a) - dateOf(b);
+            if (d !== 0) return d;
+            return vipCmp(a, b);
         });
     } else if (mode === "importance") {
         const tierOrder = { "must-read": 0, "summary-enough": 1, "discard": 2 };
         copy.sort((a, b) => {
-            const ta = tierOrder[a.ai_tier] ?? 1.5;
-            const tb = tierOrder[b.ai_tier] ?? 1.5;
+            const ta = tierOrder[a.ai_tier] ?? 3;
+            const tb = tierOrder[b.ai_tier] ?? 3;
             if (ta !== tb) return ta - tb;
-            // Within same tier: VIP first, then newest
-            if (a.is_vip !== b.is_vip) return b.is_vip ? 1 : -1;
-            return new Date(b.published_at || b.ingested_at) - new Date(a.published_at || a.ingested_at);
+            const v = vipCmp(a, b);
+            if (v !== 0) return v;
+            return dateOf(b) - dateOf(a);
         });
     }
     return copy;
