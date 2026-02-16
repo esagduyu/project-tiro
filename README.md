@@ -61,6 +61,7 @@ That's it. Save your first article by pasting a URL into the inbox.
 - **Listen to articles** — OpenAI TTS reads articles aloud with streaming playback (starts in ~2s), cached as MP3. Falls back to browser speech synthesis when no OpenAI key is configured.
 - **Semantic search** — Find articles by meaning, not just keywords
 - **Related articles** — Auto-computed on save with AI-generated connection notes
+- **Knowledge graph** — Interactive d3.js force-directed graph showing entities and tags connected by article co-occurrence. Density slider, click-to-explore article panel.
 - **Content decay** — Unengaged articles naturally fade from digests over time
 
 ### Productivity
@@ -230,6 +231,7 @@ Also available via the API (`GET /api/export`) and the Export button on the Stat
 | `a` | Switch to articles view |
 | `c` | Classify / reclassify inbox |
 | `g` | Go to stats |
+| `v` | Go to knowledge graph |
 | `?` | Show shortcuts overlay |
 
 ### Reader
@@ -243,6 +245,7 @@ Also available via the API (`GET /api/export`) and the Export button on the Stat
 | `i` | Toggle analysis panel |
 | `r` | Run / re-run analysis (when panel open) |
 | `g` | Go to stats |
+| `v` | Go to knowledge graph |
 | `?` | Show shortcuts overlay |
 
 ### Stats
@@ -253,11 +256,19 @@ Also available via the API (`GET /api/export`) and the Export button on the Stat
 | `e` | Export library |
 | `?` | Show shortcuts overlay |
 
+### Graph
+
+| Key | Action |
+|-----|--------|
+| `b` / `Esc` | Back to inbox |
+| `?` | Show shortcuts overlay |
+
 ### Settings
 
 | Key | Action |
 |-----|--------|
 | `b` / `Esc` | Back to inbox |
+| `v` | Go to knowledge graph |
 | `?` | Show shortcuts overlay |
 
 ---
