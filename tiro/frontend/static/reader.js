@@ -727,6 +727,9 @@ function setupFallbackPlayer(articleContent) {
         document.getElementById("audio-speed-btn").style.display = "none";
         document.getElementById("audio-time").textContent = "";
 
+        // Wire up play/pause button for fallback
+        document.getElementById("audio-play-btn").addEventListener("click", toggleAudioPlayback);
+
         startFallbackSpeech(articleContent);
     });
 }
