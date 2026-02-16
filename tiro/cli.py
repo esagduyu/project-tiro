@@ -76,6 +76,35 @@ def cmd_init(args):
     if setup_email.lower() in ("y", "yes"):
         _interactive_email_setup(root_config)
 
+    # Offer OpenAI TTS setup
+    print()
+    print("Tiro can read articles aloud using OpenAI's text-to-speech.")
+    print("Get your API key at https://platform.openai.com/api-keys")
+    print()
+
+    openai_key = ""
+    existing_openai = os.environ.get("OPENAI_API_KEY", "") or (yaml.safe_load(root_config.read_text()) or {}).get("openai_api_key", "")
+    if existing_openai:
+        masked = existing_openai[:7] + "..." + existing_openai[-4:]
+        print(f"Found existing OpenAI key: {masked}")
+        choice = input("Use this key? [Y/n] or paste a different one: ").strip()
+        if choice == "" or choice.lower() in ("y", "yes"):
+            openai_key = existing_openai
+        elif choice.lower() in ("n", "no"):
+            openai_key = input("OpenAI API key (or press Enter to skip): ").strip()
+        else:
+            openai_key = choice
+    else:
+        openai_key = input("OpenAI API key (or press Enter to skip): ").strip()
+
+    if openai_key:
+        config_data = yaml.safe_load(root_config.read_text()) or {}
+        config_data["openai_api_key"] = openai_key
+        root_config.write_text(yaml.dump(config_data, default_flow_style=False))
+        print(f"OpenAI key saved to {root_config}")
+    else:
+        print("Skipped — articles will use browser voice (free, lower quality).")
+
     print(f"\nTiro library initialized at {config.library}")
     print(f"Start the server with: uv run tiro run")
 

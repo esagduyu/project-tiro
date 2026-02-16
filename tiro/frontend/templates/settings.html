@@ -38,6 +38,24 @@
     <button id="btn-configure-email" class="settings-configure-btn">Configure Email</button>
 </div>
 
+<!-- TTS Status -->
+<div class="settings-section">
+    <h3 class="settings-section-title">Text-to-Speech</h3>
+    <p class="settings-section-desc">Read articles aloud using OpenAI's text-to-speech API.</p>
+
+    <div id="tts-status" class="settings-status">
+        <div class="settings-loading">
+            <div class="digest-spinner"></div>
+            <p>Loading settings...</p>
+        </div>
+    </div>
+</div>
+
+<!-- Configure TTS Modal Trigger -->
+<div class="settings-configure">
+    <button id="btn-configure-tts" class="settings-configure-btn">Configure TTS</button>
+</div>
+
 <script>
 (function() {
     let emailData = null;
@@ -292,6 +310,157 @@
         });
     }
 
+    // --- TTS Settings ---
+    let ttsData = null;
+
+    async function loadTtsSettings() {
+        var statusEl = document.getElementById('tts-status');
+
+        try {
+            var res = await fetch('/api/settings/tts');
+            var json = await res.json();
+            if (!json.success) throw new Error('API error');
+            ttsData = json.data;
+            renderTtsStatus(ttsData);
+        } catch (err) {
+            statusEl.innerHTML = '<p class="settings-error">Failed to load TTS settings.</p>';
+        }
+    }
+
+    function renderTtsStatus(data) {
+        var statusEl = document.getElementById('tts-status');
+        var configured = data && data.tts_configured;
+
+        var html = '<div class="status-card">';
+        html += '<div class="status-card-header">';
+        html += '<span class="status-indicator ' + (configured ? 'status-ok' : 'status-off') + '"></span>';
+        html += '<strong>Text-to-Speech</strong>';
+        html += '</div>';
+        if (configured) {
+            html += '<div class="status-detail">Voice: ' + escapeHtml(data.tts_voice) + '</div>';
+            html += '<div class="status-detail muted">Model: ' + escapeHtml(data.tts_model) + '</div>';
+            html += '<div class="status-detail muted">Key: ' + escapeHtml(data.openai_api_key_masked) + '</div>';
+        } else {
+            html += '<div class="status-detail muted">Not configured</div>';
+        }
+        html += '</div>';
+        statusEl.innerHTML = html;
+
+        // Update configure button text
+        var configBtn = document.getElementById('btn-configure-tts');
+        if (configured) {
+            configBtn.textContent = 'Reconfigure TTS';
+            configBtn.className = 'settings-configure-btn settings-configure-btn-secondary';
+        } else {
+            configBtn.textContent = 'Configure TTS';
+            configBtn.className = 'settings-configure-btn';
+        }
+    }
+
+    // --- Configure TTS Modal ---
+    document.getElementById('btn-configure-tts').addEventListener('click', showTtsConfigModal);
+
+    function showTtsConfigModal() {
+        var existing = document.getElementById('settings-modal-overlay');
+        if (existing) existing.remove();
+
+        var prefillVoice = (ttsData && ttsData.tts_voice) || 'nova';
+        var prefillModel = (ttsData && ttsData.tts_model) || 'tts-1';
+
+        var voices = ['alloy', 'echo', 'fable', 'onyx', 'nova', 'shimmer'];
+        var models = ['tts-1', 'tts-1-hd'];
+
+        var voiceOptions = voices.map(function(v) {
+            return '<option value="' + v + '"' + (v === prefillVoice ? ' selected' : '') + '>' + v + '</option>';
+        }).join('');
+
+        var modelOptions = models.map(function(m) {
+            return '<option value="' + m + '"' + (m === prefillModel ? ' selected' : '') + '>' + m + '</option>';
+        }).join('');
+
+        var overlay = document.createElement('div');
+        overlay.id = 'settings-modal-overlay';
+        overlay.className = 'settings-modal-overlay';
+        overlay.innerHTML =
+            '<div class="settings-modal">' +
+                '<div class="settings-modal-header">' +
+                    '<h3>Configure Text-to-Speech</h3>' +
+                    '<button class="settings-modal-close" id="modal-close">&times;</button>' +
+                '</div>' +
+                '<div class="settings-modal-body">' +
+                    '<div class="settings-field">' +
+                        '<label>OpenAI API Key</label>' +
+                        '<input type="password" id="cfg-tts-key" placeholder="sk-...">' +
+                    '</div>' +
+                    '<div class="settings-field">' +
+                        '<label>Voice</label>' +
+                        '<select id="cfg-tts-voice">' + voiceOptions + '</select>' +
+                    '</div>' +
+                    '<div class="settings-field">' +
+                        '<label>Model</label>' +
+                        '<select id="cfg-tts-model">' + modelOptions + '</select>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="settings-modal-actions">' +
+                    '<button class="settings-cancel-btn" id="modal-cancel">Cancel</button>' +
+                    '<button class="settings-save-btn" id="modal-save">Save</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+
+        // Close handlers
+        document.getElementById('modal-close').addEventListener('click', function() { overlay.remove(); });
+        document.getElementById('modal-cancel').addEventListener('click', function() { overlay.remove(); });
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.addEventListener('keydown', function handler(e) {
+            if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', handler); }
+        });
+
+        // Save handler
+        document.getElementById('modal-save').addEventListener('click', async function() {
+            var apiKey = document.getElementById('cfg-tts-key').value.trim();
+            var voice = document.getElementById('cfg-tts-voice').value;
+            var model = document.getElementById('cfg-tts-model').value;
+
+            if (!apiKey) {
+                showToast('OpenAI API key is required', 'error');
+                return;
+            }
+
+            var saveBtn = this;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                var res = await fetch('/api/settings/tts', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        openai_api_key: apiKey,
+                        tts_voice: voice,
+                        tts_model: model,
+                    }),
+                });
+                var json = await res.json();
+
+                if (!res.ok) {
+                    showToast(json.detail || 'Failed to save', 'error');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save';
+                    return;
+                }
+
+                overlay.remove();
+                showToast('TTS settings saved', 'success');
+                loadTtsSettings();
+            } catch (err) {
+                showToast('Connection error', 'error');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            }
+        });
+    }
+
     // --- Toast notifications ---
     function showToast(message, type) {
         var existing = document.querySelector('.settings-toast');
@@ -381,6 +550,7 @@
 
     // Load on init
     loadEmailSettings();
+    loadTtsSettings();
 })();
 </script>
 {% endblock %}

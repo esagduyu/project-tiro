@@ -2139,7 +2139,8 @@ main {
 
 .settings-field input[type="email"],
 .settings-field input[type="password"],
-.settings-field input[type="text"] {
+.settings-field input[type="text"],
+.settings-field select {
     width: 100%;
     padding: 0.5rem 0.75rem;
     border: 1px solid var(--border);
