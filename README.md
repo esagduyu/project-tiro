@@ -42,6 +42,14 @@ uv run tiro run               # starts server at localhost:8000, opens browser
 
 That's it. Save your first article by pasting a URL into the inbox.
 
+**Seed with demo content:** To quickly populate the library with ~22 articles for a full demo experience:
+
+```bash
+uv run python scripts/seed_articles.py    # ingests articles, sets ratings + VIP
+```
+
+Then run `tiro run`, rate a few more articles if needed, and click "Classify inbox" to see Opus sort your reading into tiers.
+
 **Read on your phone or tablet:** Run with `--lan` to make Tiro accessible from any device on your local network:
 
 ```bash
@@ -67,7 +75,7 @@ Then open `http://<your-ip>:8000` on your phone. The mobile UI has a responsive 
 
 ### Intelligence (Opus 4.6)
 
-- **Daily digest** — Three digest variants: ranked by importance, grouped by topic, grouped by entity. Opus finds contradictions between sources, connects threads, and surfaces insights you'd miss.
+- **Daily digest** — Three digest variants: ranked by importance, grouped by topic, grouped by entity. Opus finds contradictions between sources, connects threads, and surfaces insights you'd miss. Schedulable for automatic daily generation + email delivery.
 - **Ingenuity analysis** — On-demand bias detection, factual confidence scoring, and novelty assessment for any article. Only runs when you ask (saves tokens).
 - **Learned preferences** — Rate a few articles, and Opus classifies the rest into must-read / summary-enough / discard tiers based on your demonstrated taste.
 
@@ -92,7 +100,8 @@ Then open `http://<your-ip>:8000` on your phone. The mobile UI has a responsive 
 
 - **Keyboard-first** — Full `j`/`k`/`Enter`/`Esc` navigation, ratings with `1`/`2`/`3`, `f` for filter panel, shortcuts overlay with `?`
 - **Gmail integration** — Send digest emails via Gmail SMTP, auto-ingest newsletters via IMAP label monitoring with configurable auto-sync (every 5–60 min)
-- **Settings page** — Configure email, IMAP sync schedule, TTS, appearance (themes + page size) from the web UI
+- **Digest scheduling** — Schedule daily digest generation + email delivery at a set time. Browse previous digests from a history dropdown.
+- **Settings page** — Configure email, IMAP sync schedule, TTS, digest schedule, appearance (themes + page size) from the web UI
 - **Reading stats** — Charts showing articles saved/read, top topics, source engagement, reading streak
 - **Export** — Download your entire library as a portable zip (markdown files + metadata JSON)
 - **MCP server** — Query your library from Claude Desktop or Claude Code

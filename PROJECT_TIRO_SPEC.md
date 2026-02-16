@@ -827,6 +827,15 @@ When building with Claude Code, follow this order. Each checkpoint should result
 
 17. **Checkpoint: Digest email** — Scheduled digest sent to configured email. Visible in mailhog/mailtrap for demo.
 
+### Beyond-Spec Checkpoints (completed during hackathon)
+
+18. **Gmail IMAP + SMTP** — Bidirectional Gmail integration: send digest emails via SMTP with App Password, auto-ingest newsletters via IMAP label monitoring.
+19. **TTS audio player** — OpenAI TTS streaming with paragraph chunking, cached MP3s, speechSynthesis fallback, speed control.
+20. **IMAP sync scheduler** — asyncio background task polls IMAP every N minutes (configurable 5–60 min, default 15).
+21. **Knowledge graph** — d3.js force-directed graph of entities + tags with co-occurrence edges, density slider, click-to-explore.
+22. **UX redesign** — Roman-themed UI (papyrus/roman-night themes), sidebar navigation, 11-facet filter panel, responsive mobile layout, Tironian et logo.
+23. **Digest scheduling & history** — Background scheduler auto-generates + emails digests daily at configurable time. History dropdown to browse past digests.
+
 ---
 
 ## Notes for Claude Code

@@ -114,7 +114,7 @@ lsof -ti :8000 | xargs kill -9
 
 ## Current Status
 
-**Completed:** 21 checkpoints + UX redesign (Checkpoint 22) + Digest scheduling & history
+**Completed:** 17 spec checkpoints + 5 beyond-spec (Gmail IMAP/SMTP, TTS, IMAP scheduler, knowledge graph, UX redesign) + digest scheduling & history. Seed script updated with full demo library (22 URLs + ratings/VIP).
 
 <!-- UPDATE THIS SECTION AS YOU COMPLETE CHECKPOINTS -->
 <!--
