@@ -305,7 +305,7 @@ def get_audio_status(article_id: int, config: TiroConfig) -> dict:
         return {"cached": False, "fallback": False}
 
     # Verify the file still exists on disk
-    audio_path = config.library / row["file_path"]
+    audio_path = config.library / "audio" / row["file_path"]
     if not audio_path.exists():
         # DB record exists but file is missing — treat as uncached
         logger.warning(
