@@ -27,6 +27,7 @@ async def lifespan(app: FastAPI):
 
     # Ensure library directories exist
     config.articles_dir.mkdir(parents=True, exist_ok=True)
+    (config.library / "audio").mkdir(parents=True, exist_ok=True)
 
     # Initialize SQLite
     init_db(config.db_path)
@@ -76,6 +77,7 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     from tiro.api.routes_export import router as export_router
     from tiro.api.routes_digest_email import router as digest_email_router
     from tiro.api.routes_settings import router as settings_router
+    from tiro.api.routes_audio import router as audio_router
 
     app.include_router(ingest_router)
     app.include_router(articles_router)
@@ -88,6 +90,7 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     app.include_router(stats_router)
     app.include_router(export_router)
     app.include_router(settings_router)
+    app.include_router(audio_router)
 
     # Static files and templates
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="static")
