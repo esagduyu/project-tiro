@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Tiro — Inbox{% endblock %}
+{% block nav_inbox %}active{% endblock %}
+{% block content_class %}inbox-layout{% endblock %}
+
+{% block content %}
+<div class="inbox-main">
+    <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search your library..." autocomplete="off">
+        <button id="search-clear" class="search-clear" style="display: none;">&times;</button>
+    </div>
+    <div id="empty-state" class="empty-state" style="display: none;">
+        <h2>No articles yet</h2>
+        <p>Save your first article to get started:</p>
+        <code>curl -X POST http://localhost:8000/api/ingest/url \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://example.com/article"}'</code>
+    </div>
+    <div id="inbox-toolbar" class="inbox-toolbar" style="display: none;">
+        <button id="classify-btn" class="classify-btn">Classify inbox</button>
+        <button id="vip-toggle" class="discard-toggle" title="Show only VIP articles">&#9733; VIP only</button>
+        <button id="discard-toggle" class="discard-toggle" style="display: none;">Show discarded (0)</button>
+        <button id="archived-toggle" class="discard-toggle" style="display: none;">Show archived</button>
+        <span id="classify-info" class="classify-info"></span>
+        <select id="sort-select" class="sort-select">
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+            <option value="importance">By importance</option>
+        </select>
+    </div>
+    <!-- Active filter pills -->
+    <div id="active-filters" class="active-filters" style="display: none;"></div>
+    <div id="article-list" class="article-list"></div>
+    <!-- Pagination -->
+    <div id="pagination" class="pagination" style="display: none;"></div>
+</div>
+<aside id="filter-panel" class="filter-panel">
+    <div class="filter-panel-header">
+        <h3>Filters</h3>
+        <button id="filter-panel-close" class="filter-panel-close">&times;</button>
+    </div>
+    <div id="filter-panel-body" class="filter-panel-body">
+        <div class="filter-loading">Loading filters...</div>
+    </div>
+    <div class="filter-panel-footer">
+        <button id="filter-clear-all" class="filter-clear-btn">Clear all</button>
+    </div>
+</aside>
+<button id="filter-tab" class="filter-tab" title="Toggle filters">Filters</button>
+{% endblock %}

@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}Tiro — Digest{% endblock %}
+{% block nav_digest %}active{% endblock %}
+
+{% block content %}
+<section class="digest-view">
+    <div class="digest-tabs">
+        <button class="digest-tab active" data-type="ranked">Ranked</button>
+        <button class="digest-tab" data-type="by_topic">By Topic</button>
+        <button class="digest-tab" data-type="by_entity">By Entity</button>
+        <button class="digest-refresh" id="digest-refresh" title="Regenerate digest">&#8635;</button>
+    </div>
+    <div id="digest-loading" class="digest-loading" style="display: none;">
+        <div class="digest-spinner"></div>
+        <p>Opus 4.6 is analyzing your articles...</p>
+        <p class="digest-loading-sub">Finding connections, contradictions, and insights</p>
+    </div>
+    <div id="digest-error" class="digest-error" style="display: none;">
+        <p id="digest-error-msg">Failed to generate digest.</p>
+        <button onclick="loadDigest(true)">Try again</button>
+    </div>
+    <div id="digest-banner" class="digest-banner" style="display: none;"></div>
+    <div id="digest-content" class="digest-content">
+        <div id="digest-ranked" class="digest-section reader-body"></div>
+        <div id="digest-by-topic" class="digest-section reader-body" style="display: none;"></div>
+        <div id="digest-by-entity" class="digest-section reader-body" style="display: none;"></div>
+    </div>
+    <div id="digest-empty" class="empty-state" style="display: none;">
+        <h2>No digest yet</h2>
+        <p>Save some articles first, then come back for your daily digest.</p>
+    </div>
+</section>
+{% endblock %}

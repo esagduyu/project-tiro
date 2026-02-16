@@ -64,11 +64,19 @@ That's it. Save your first article by pasting a URL into the inbox.
 - **Knowledge graph** — Interactive d3.js force-directed graph showing entities and tags connected by article co-occurrence. Density slider, click-to-explore article panel.
 - **Content decay** — Unengaged articles naturally fade from digests over time
 
+### Interface
+
+- **Sidebar navigation** — Persistent left sidebar with Inbox, Digest, Graph, Stats, Settings. Collapses to icons on narrower screens, hamburger menu on mobile.
+- **Filter panel** — Right-edge tab opens a slide-out panel with 11 filter facets: AI tier, rating, source, tag, read status, VIP, ingestion method, date range. Active filter pills. URL-synced state.
+- **Dark mode** — Toggle between Papyrus (warm cream) and Roman Night (warm charcoal) themes. Persists via localStorage.
+- **Theming** — CSS variable-based theme system with 20 `--tiro-*` variables. Roman-inspired palette: terra cotta accent, olive secondary, warm gold for links. Custom theme import support.
+- **Pagination** — Configurable page size (10/25/50), server-side offset/limit pagination with keyboard-friendly navigation.
+
 ### Productivity
 
-- **Keyboard-first** — Full `j`/`k`/`Enter`/`Esc` navigation, ratings with `1`/`2`/`3`, shortcuts overlay with `?`
+- **Keyboard-first** — Full `j`/`k`/`Enter`/`Esc` navigation, ratings with `1`/`2`/`3`, `f` for filter panel, shortcuts overlay with `?`
 - **Gmail integration** — Send digest emails via Gmail SMTP, auto-ingest newsletters via IMAP label monitoring with configurable auto-sync (every 5–60 min)
-- **Settings page** — Configure email, IMAP sync schedule, and TTS from the web UI
+- **Settings page** — Configure email, IMAP sync schedule, TTS, appearance (themes + page size) from the web UI
 - **Reading stats** — Charts showing articles saved/read, top topics, source engagement, reading streak
 - **Export** — Download your entire library as a portable zip (markdown files + metadata JSON)
 - **MCP server** — Query your library from Claude Desktop or Claude Code
@@ -78,7 +86,7 @@ That's it. Save your first article by pasting a URL into the inbox.
 ## Architecture
 
 ```
-Web UI (localhost:8000)
+Web UI (localhost:8000 — sidebar nav, dark mode, filter panel, themes)
   ↕ REST API
 FastAPI Backend
   ├── Ingestion Engine (readability-lxml + markdownify + IMAP)
@@ -148,11 +156,12 @@ Tiro includes an MCP (Model Context Protocol) server that exposes your reading l
 
 | Tool | Description |
 |------|-------------|
-| `search_articles(query)` | Semantic search across your library |
+| `search_articles(query, ...)` | Semantic search with optional filters (ai_tier, source_id, tag, rating, date range, etc.) |
 | `get_article(article_id)` | Full article content and metadata |
 | `get_digest(digest_type)` | Today's daily digest (ranked, by_topic, by_entity) |
 | `get_articles_by_tag(tag)` | Articles filtered by topic tag |
 | `get_articles_by_source(source)` | Articles filtered by source name or domain |
+| `list_filters()` | Available filter facets with counts (tiers, sources, tags, ratings) |
 | `save_url(url)` | Save a web page to your library |
 | `save_email(file_path)` | Save an .eml newsletter to your library |
 
@@ -228,7 +237,8 @@ Also available via the API (`GET /api/export`) and the Export button on the Stat
 | `s` | Toggle VIP on selected article's source |
 | `1` / `2` / `3` | Rate: dislike / like / love |
 | `/` | Focus search bar |
-| `d` | Switch to digest view |
+| `f` | Toggle filter panel |
+| `d` | Go to digest |
 | `a` | Switch to articles view |
 | `c` | Classify / reclassify inbox |
 | `g` | Go to stats |
@@ -245,6 +255,7 @@ Also available via the API (`GET /api/export`) and the Export button on the Stat
 | `p` | Play / pause audio |
 | `i` | Toggle analysis panel |
 | `r` | Run / re-run analysis (when panel open) |
+| `d` | Go to digest |
 | `g` | Go to stats |
 | `v` | Go to knowledge graph |
 | `?` | Show shortcuts overlay |
@@ -294,7 +305,7 @@ project-tiro/
 │   ├── intelligence/           # Opus 4.6 features (digest, analysis, preferences)
 │   ├── search/                 # Semantic search + related articles
 │   ├── mcp/                    # MCP server for Claude integration
-│   └── frontend/               # HTML templates, CSS, JS
+│   └── frontend/               # HTML templates, CSS, JS, themes
 ├── extension/                  # Chrome extension
 ├── scripts/                    # Utility scripts
 ├── pyproject.toml              # Package config

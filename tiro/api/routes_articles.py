@@ -66,45 +66,216 @@ async def get_article(article_id: int, request: Request):
 
 
 @router.get("")
-async def list_articles(request: Request, include_decayed: bool = True):
-    """List all articles, VIP pinned to top, newest first.
+async def list_articles(
+    request: Request,
+    page: int = 1,
+    per_page: int = 0,
+    sort: str = "newest",
+    is_read: bool | None = None,
+    is_vip: bool | None = None,
+    ai_tier: str | None = None,
+    author: str | None = None,
+    source_id: int | None = None,
+    tag: str | None = None,
+    rating: str | None = None,
+    ingestion_method: str | None = None,
+    min_reading_time: int | None = None,
+    max_reading_time: int | None = None,
+    has_audio: bool | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    include_decayed: bool = True,
+    count_only: bool = False,
+):
+    """List articles with filtering, sorting, and pagination.
 
-    ?include_decayed=false hides articles with relevance_weight below the decay threshold.
+    per_page=0 (default) returns all results (backwards compatible).
+    count_only=true returns just the count matching filters.
     """
     config = request.app.state.config
     conn = get_connection(config.db_path)
     try:
-        query = """
+        where_clauses = []
+        params: list = []
+
+        if not include_decayed:
+            where_clauses.append("a.relevance_weight >= ?")
+            params.append(config.decay_threshold)
+
+        if is_read is not None:
+            where_clauses.append("a.is_read = ?")
+            params.append(1 if is_read else 0)
+
+        if is_vip is not None:
+            where_clauses.append("s.is_vip = ?")
+            params.append(1 if is_vip else 0)
+
+        if ai_tier:
+            tiers = [t.strip() for t in ai_tier.split(",") if t.strip()]
+            if tiers:
+                placeholders = ",".join("?" * len(tiers))
+                # Handle 'unclassified' as NULL
+                if "unclassified" in tiers:
+                    tiers_filtered = [t for t in tiers if t != "unclassified"]
+                    if tiers_filtered:
+                        where_clauses.append(f"(a.ai_tier IN ({','.join('?' * len(tiers_filtered))}) OR a.ai_tier IS NULL)")
+                        params.extend(tiers_filtered)
+                    else:
+                        where_clauses.append("a.ai_tier IS NULL")
+                else:
+                    where_clauses.append(f"a.ai_tier IN ({placeholders})")
+                    params.extend(tiers)
+
+        if author:
+            where_clauses.append("a.author = ?")
+            params.append(author)
+
+        if source_id is not None:
+            where_clauses.append("a.source_id = ?")
+            params.append(source_id)
+
+        if tag:
+            where_clauses.append("""a.id IN (
+                SELECT at2.article_id FROM article_tags at2
+                JOIN tags t2 ON t2.id = at2.tag_id
+                WHERE t2.name = ?
+            )""")
+            params.append(tag)
+
+        if rating:
+            ratings = [r.strip() for r in rating.split(",") if r.strip()]
+            if ratings:
+                # Map named ratings to values
+                rating_map = {"loved": "2", "liked": "1", "disliked": "-1", "unrated": "NULL"}
+                rating_vals = []
+                has_unrated = False
+                for r in ratings:
+                    mapped = rating_map.get(r, r)
+                    if mapped == "NULL":
+                        has_unrated = True
+                    else:
+                        rating_vals.append(mapped)
+
+                parts = []
+                if rating_vals:
+                    parts.append(f"a.rating IN ({','.join('?' * len(rating_vals))})")
+                    params.extend(int(v) for v in rating_vals)
+                if has_unrated:
+                    parts.append("a.rating IS NULL")
+                if parts:
+                    where_clauses.append(f"({' OR '.join(parts)})")
+
+        if ingestion_method:
+            methods = [m.strip() for m in ingestion_method.split(",") if m.strip()]
+            if methods:
+                placeholders = ",".join("?" * len(methods))
+                where_clauses.append(f"COALESCE(a.ingestion_method, 'manual') IN ({placeholders})")
+                params.extend(methods)
+
+        if min_reading_time is not None:
+            where_clauses.append("a.reading_time_min >= ?")
+            params.append(min_reading_time)
+
+        if max_reading_time is not None:
+            where_clauses.append("a.reading_time_min <= ?")
+            params.append(max_reading_time)
+
+        if has_audio is not None:
+            if has_audio:
+                where_clauses.append("a.id IN (SELECT article_id FROM audio)")
+            else:
+                where_clauses.append("a.id NOT IN (SELECT article_id FROM audio)")
+
+        if date_from:
+            where_clauses.append("COALESCE(a.published_at, a.ingested_at) >= ?")
+            params.append(date_from)
+
+        if date_to:
+            where_clauses.append("COALESCE(a.published_at, a.ingested_at) <= ?")
+            params.append(date_to + " 23:59:59")
+
+        where_sql = (" WHERE " + " AND ".join(where_clauses)) if where_clauses else ""
+
+        # Count only mode (for unread badge etc.)
+        if count_only:
+            count = conn.execute(
+                f"SELECT COUNT(*) FROM articles a LEFT JOIN sources s ON a.source_id = s.id{where_sql}",
+                params,
+            ).fetchone()[0]
+            return {"success": True, "data": {"count": count}}
+
+        # Sort
+        sort_sql = {
+            "newest": "s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) DESC",
+            "oldest": "s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) ASC",
+            "importance": """
+                CASE a.ai_tier
+                    WHEN 'must-read' THEN 0
+                    WHEN 'summary-enough' THEN 1
+                    WHEN 'discard' THEN 2
+                    ELSE 3
+                END ASC, s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) DESC
+            """,
+        }.get(sort, "s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) DESC")
+
+        # Total count for pagination
+        total = conn.execute(
+            f"SELECT COUNT(*) FROM articles a LEFT JOIN sources s ON a.source_id = s.id{where_sql}",
+            params,
+        ).fetchone()[0]
+
+        # Pagination
+        limit_sql = ""
+        if per_page > 0:
+            offset = (max(1, page) - 1) * per_page
+            limit_sql = f" LIMIT {per_page} OFFSET {offset}"
+
+        query = f"""
             SELECT
                 a.id, a.title, a.author, a.url, a.slug, a.summary,
                 a.word_count, a.reading_time_min, a.published_at, a.ingested_at,
                 a.is_read, a.rating, a.opened_count, a.ai_tier,
-                a.relevance_weight,
+                a.relevance_weight, a.ingestion_method,
                 s.name AS source_name, s.domain, s.is_vip, s.id AS source_id,
                 s.source_type
             FROM articles a
             LEFT JOIN sources s ON a.source_id = s.id
+            {where_sql}
+            ORDER BY {sort_sql}
+            {limit_sql}
         """
-        params = []
-        if not include_decayed:
-            query += " WHERE a.relevance_weight >= ?"
-            params.append(config.decay_threshold)
-        query += " ORDER BY s.is_vip DESC, COALESCE(a.published_at, a.ingested_at) DESC"
 
         rows = conn.execute(query, params).fetchall()
+
+        # Batch-fetch tags for all articles
+        article_ids = [row["id"] for row in rows]
+        tags_map: dict[int, list[str]] = {aid: [] for aid in article_ids}
+        if article_ids:
+            placeholders = ",".join("?" * len(article_ids))
+            tag_rows = conn.execute(f"""
+                SELECT at.article_id, t.name FROM tags t
+                JOIN article_tags at ON t.id = at.tag_id
+                WHERE at.article_id IN ({placeholders})
+            """, article_ids).fetchall()
+            for tr in tag_rows:
+                tags_map[tr["article_id"]].append(tr["name"])
 
         articles = []
         for row in rows:
             article = dict(row)
-            tags = conn.execute("""
-                SELECT t.name FROM tags t
-                JOIN article_tags at ON t.id = at.tag_id
-                WHERE at.article_id = ?
-            """, (article["id"],)).fetchall()
-            article["tags"] = [t["name"] for t in tags]
+            article["tags"] = tags_map.get(article["id"], [])
             articles.append(article)
 
-        return {"success": True, "data": articles}
+        response: dict = {"success": True, "data": articles}
+        if per_page > 0:
+            import math
+            response["pagination"] = {
+                "page": page,
+                "per_page": per_page,
+                "total": total,
+                "total_pages": math.ceil(total / per_page) if per_page else 1,
+            }
+        return response
     finally:
         conn.close()
 

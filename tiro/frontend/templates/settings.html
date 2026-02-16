@@ -1,13 +1,35 @@
 {% extends "base.html" %}
 
 {% block title %}Tiro — Settings{% endblock %}
+{% block nav_settings %}active{% endblock %}
 
 {% block content %}
 <div class="settings-header">
     <div class="settings-title-row">
         <h2>Settings</h2>
-        <a href="/" class="back-link">&larr; Back to inbox</a>
     </div>
+</div>
+
+<!-- Appearance -->
+<div class="settings-section">
+    <h3 class="settings-section-title">Appearance</h3>
+    <p class="settings-section-desc">Customize themes and display preferences.</p>
+
+    <div id="appearance-status" class="settings-status">
+        <div class="settings-loading">
+            <div class="digest-spinner"></div>
+            <p>Loading settings...</p>
+        </div>
+    </div>
+</div>
+
+<div class="settings-configure">
+    <button id="btn-configure-appearance" class="settings-configure-btn">Configure Appearance</button>
+</div>
+
+<!-- Import Theme -->
+<div class="settings-configure" style="margin-top: 0.5rem;">
+    <button id="btn-import-theme" class="settings-configure-btn settings-configure-btn-secondary">Import Theme</button>
 </div>
 
 <!-- Email Status -->
@@ -58,7 +80,251 @@
 
 <script>
 (function() {
+    let appearanceData = null;
     let emailData = null;
+
+    // --- Appearance Settings ---
+    async function loadAppearanceSettings() {
+        var statusEl = document.getElementById('appearance-status');
+        try {
+            var res = await fetch('/api/settings/appearance');
+            var json = await res.json();
+            if (!json.success) throw new Error('API error');
+            appearanceData = json.data;
+            renderAppearanceStatus(appearanceData);
+        } catch (err) {
+            statusEl.innerHTML = '<p class="settings-error">Failed to load appearance settings.</p>';
+        }
+    }
+
+    function renderAppearanceStatus(data) {
+        var statusEl = document.getElementById('appearance-status');
+        var html = '<div class="settings-status-grid">';
+
+        // Theme card
+        html += '<div class="status-card">';
+        html += '<div class="status-card-header">';
+        html += '<span class="status-indicator status-ok"></span>';
+        html += '<strong>Themes</strong>';
+        html += '</div>';
+        html += '<div class="status-detail">Light: ' + escapeHtml(data.theme_light) + '</div>';
+        html += '<div class="status-detail muted">Dark: ' + escapeHtml(data.theme_dark) + '</div>';
+        html += '</div>';
+
+        // Page size card
+        html += '<div class="status-card">';
+        html += '<div class="status-card-header">';
+        html += '<span class="status-indicator status-ok"></span>';
+        html += '<strong>Display</strong>';
+        html += '</div>';
+        html += '<div class="status-detail">Page size: ' + (data.inbox_page_size === 0 ? 'All' : data.inbox_page_size) + ' articles</div>';
+        html += '<div class="status-detail muted">' + data.themes.length + ' themes available</div>';
+        html += '</div>';
+
+        html += '</div>';
+        statusEl.innerHTML = html;
+    }
+
+    document.getElementById('btn-configure-appearance').addEventListener('click', showAppearanceModal);
+
+    function showAppearanceModal() {
+        var existing = document.getElementById('settings-modal-overlay');
+        if (existing) existing.remove();
+
+        var data = appearanceData || { theme_light: 'papyrus', theme_dark: 'roman-night', inbox_page_size: 50, themes: [] };
+        var themes = data.themes || [];
+
+        var themeOptions = themes.map(function(t) {
+            return '<option value="' + t.name + '">' + t.name + (t.builtin ? '' : ' (custom)') + '</option>';
+        }).join('');
+
+        var pageSizes = [
+            { value: 25, label: '25 articles' },
+            { value: 50, label: '50 articles' },
+            { value: 100, label: '100 articles' },
+            { value: 0, label: 'All (no pagination)' },
+        ];
+        var pageSizeOptions = pageSizes.map(function(ps) {
+            return '<option value="' + ps.value + '"' + (ps.value === data.inbox_page_size ? ' selected' : '') + '>' + ps.label + '</option>';
+        }).join('');
+
+        var overlay = document.createElement('div');
+        overlay.id = 'settings-modal-overlay';
+        overlay.className = 'settings-modal-overlay';
+        overlay.innerHTML =
+            '<div class="settings-modal">' +
+                '<div class="settings-modal-header">' +
+                    '<h3>Configure Appearance</h3>' +
+                    '<button class="settings-modal-close" id="modal-close">&times;</button>' +
+                '</div>' +
+                '<div class="settings-modal-body">' +
+                    '<div class="settings-field">' +
+                        '<label>Light mode theme</label>' +
+                        '<select id="cfg-theme-light">' + themeOptions + '</select>' +
+                    '</div>' +
+                    '<div class="settings-field">' +
+                        '<label>Dark mode theme</label>' +
+                        '<select id="cfg-theme-dark">' + themeOptions + '</select>' +
+                    '</div>' +
+                    '<div class="settings-field">' +
+                        '<label>Articles per page</label>' +
+                        '<select id="cfg-page-size">' + pageSizeOptions + '</select>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="settings-modal-actions">' +
+                    '<button class="settings-cancel-btn" id="modal-cancel">Cancel</button>' +
+                    '<button class="settings-save-btn" id="modal-save">Save</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+
+        // Set current selections
+        var lightSelect = document.getElementById('cfg-theme-light');
+        var darkSelect = document.getElementById('cfg-theme-dark');
+        lightSelect.value = data.theme_light;
+        darkSelect.value = data.theme_dark;
+
+        // Close handlers
+        document.getElementById('modal-close').addEventListener('click', function() { overlay.remove(); });
+        document.getElementById('modal-cancel').addEventListener('click', function() { overlay.remove(); });
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.addEventListener('keydown', function handler(e) {
+            if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', handler); }
+        });
+
+        // Save
+        document.getElementById('modal-save').addEventListener('click', async function() {
+            var saveBtn = this;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Saving...';
+
+            try {
+                var res = await fetch('/api/settings/appearance', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        theme_light: lightSelect.value,
+                        theme_dark: darkSelect.value,
+                        inbox_page_size: parseInt(document.getElementById('cfg-page-size').value),
+                    }),
+                });
+                var json = await res.json();
+                if (!res.ok) {
+                    showToast(json.detail || 'Failed to save', 'error');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Save';
+                    return;
+                }
+
+                overlay.remove();
+                showToast('Appearance settings saved', 'success');
+                loadAppearanceSettings();
+            } catch (err) {
+                showToast('Connection error', 'error');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Save';
+            }
+        });
+    }
+
+    // --- Import Theme Modal ---
+    document.getElementById('btn-import-theme').addEventListener('click', showImportThemeModal);
+
+    function showImportThemeModal() {
+        var existing = document.getElementById('settings-modal-overlay');
+        if (existing) existing.remove();
+
+        var overlay = document.createElement('div');
+        overlay.id = 'settings-modal-overlay';
+        overlay.className = 'settings-modal-overlay';
+        overlay.innerHTML =
+            '<div class="settings-modal">' +
+                '<div class="settings-modal-header">' +
+                    '<h3>Import Theme</h3>' +
+                    '<button class="settings-modal-close" id="modal-close">&times;</button>' +
+                '</div>' +
+                '<div class="settings-modal-body">' +
+                    '<p class="settings-modal-hint">Upload a CSS file or paste CSS content. Theme must define all 21 <code>--tiro-*</code> CSS variables.</p>' +
+                    '<div class="settings-field">' +
+                        '<label>Theme name (lowercase, hyphens ok)</label>' +
+                        '<input type="text" id="cfg-theme-name" placeholder="my-theme">' +
+                    '</div>' +
+                    '<div class="settings-field">' +
+                        '<label>CSS file</label>' +
+                        '<input type="file" id="cfg-theme-file" accept=".css">' +
+                    '</div>' +
+                    '<div class="settings-field">' +
+                        '<label>Or paste CSS</label>' +
+                        '<textarea id="cfg-theme-css" rows="8" placeholder=":root {\n  --tiro-bg: #FAF6F0;\n  --tiro-fg: #2C2520;\n  ...\n}" style="font-family: monospace; font-size: 0.85rem;"></textarea>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="settings-modal-actions">' +
+                    '<button class="settings-cancel-btn" id="modal-cancel">Cancel</button>' +
+                    '<button class="settings-save-btn" id="modal-save">Import</button>' +
+                '</div>' +
+            '</div>';
+        document.body.appendChild(overlay);
+
+        // File input handler — reads file into textarea
+        document.getElementById('cfg-theme-file').addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+            var reader = new FileReader();
+            reader.onload = function(ev) {
+                document.getElementById('cfg-theme-css').value = ev.target.result;
+                // Auto-fill name from filename if empty
+                var nameInput = document.getElementById('cfg-theme-name');
+                if (!nameInput.value) {
+                    nameInput.value = file.name.replace('.css', '').toLowerCase().replace(/[^a-z0-9-]/g, '-');
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // Close handlers
+        document.getElementById('modal-close').addEventListener('click', function() { overlay.remove(); });
+        document.getElementById('modal-cancel').addEventListener('click', function() { overlay.remove(); });
+        overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
+        document.addEventListener('keydown', function handler(e) {
+            if (e.key === 'Escape') { overlay.remove(); document.removeEventListener('keydown', handler); }
+        });
+
+        // Import
+        document.getElementById('modal-save').addEventListener('click', async function() {
+            var name = document.getElementById('cfg-theme-name').value.trim();
+            var css = document.getElementById('cfg-theme-css').value.trim();
+
+            if (!name) { showToast('Theme name is required', 'error'); return; }
+            if (!css) { showToast('CSS content is required', 'error'); return; }
+
+            var saveBtn = this;
+            saveBtn.disabled = true;
+            saveBtn.textContent = 'Importing...';
+
+            try {
+                var res = await fetch('/api/settings/theme/import', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: name, css: css }),
+                });
+                var json = await res.json();
+                if (!res.ok) {
+                    showToast(json.detail || 'Import failed', 'error');
+                    saveBtn.disabled = false;
+                    saveBtn.textContent = 'Import';
+                    return;
+                }
+
+                overlay.remove();
+                showToast('Theme "' + name + '" imported successfully', 'success');
+                loadAppearanceSettings();
+            } catch (err) {
+                showToast('Connection error', 'error');
+                saveBtn.disabled = false;
+                saveBtn.textContent = 'Import';
+            }
+        });
+    }
 
     async function loadEmailSettings() {
         const statusEl = document.getElementById('email-status');
@@ -525,7 +791,7 @@
             case 'b':
             case 'Escape':
                 e.preventDefault();
-                window.location.href = '/';
+                window.location.href = '/inbox';
                 break;
             case 'v':
                 e.preventDefault();
@@ -572,6 +838,7 @@
     });
 
     // Load on init
+    loadAppearanceSettings();
     loadEmailSettings();
     loadTtsSettings();
 })();

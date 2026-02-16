@@ -2,6 +2,7 @@
 
 import logging
 import os
+import re
 from pathlib import Path
 
 import yaml
@@ -178,5 +179,162 @@ async def update_tts_settings(body: TTSSettingsUpdate, request: Request):
             "tts_configured": True,
             "tts_voice": body.tts_voice,
             "tts_model": body.tts_model,
+        },
+    }
+
+
+# Required --tiro-* CSS variables for theme validation
+REQUIRED_THEME_VARS = [
+    "--tiro-bg", "--tiro-bg-surface", "--tiro-bg-hover",
+    "--tiro-fg", "--tiro-fg-secondary", "--tiro-muted",
+    "--tiro-border", "--tiro-accent", "--tiro-accent-hover",
+    "--tiro-secondary", "--tiro-secondary-hover",
+    "--tiro-gold", "--tiro-gold-hover",
+    "--tiro-sidebar-bg", "--tiro-sidebar-active",
+    "--tiro-tier-must-read", "--tiro-tier-summary", "--tiro-tier-discard",
+    "--tiro-rate-love", "--tiro-rate-like", "--tiro-rate-dislike",
+]
+
+
+def _list_available_themes(config) -> list[dict]:
+    """List available themes from built-in and library theme directories."""
+    themes = []
+
+    # Built-in themes
+    builtin_dir = Path(__file__).parent.parent / "frontend" / "static" / "themes"
+    if builtin_dir.exists():
+        for css_file in sorted(builtin_dir.glob("*.css")):
+            themes.append({
+                "name": css_file.stem,
+                "path": f"/static/themes/{css_file.name}",
+                "builtin": True,
+            })
+
+    # Library custom themes
+    custom_dir = config.library / "themes"
+    if custom_dir.exists():
+        for css_file in sorted(custom_dir.glob("*.css")):
+            if not any(t["name"] == css_file.stem for t in themes):
+                themes.append({
+                    "name": css_file.stem,
+                    "path": f"/library/themes/{css_file.name}",
+                    "builtin": False,
+                })
+
+    return themes
+
+
+def _validate_theme_css(css_content: str) -> list[str]:
+    """Check CSS for required --tiro-* variables. Returns list of missing vars."""
+    missing = []
+    for var in REQUIRED_THEME_VARS:
+        if var + ":" not in css_content:
+            missing.append(var)
+    return missing
+
+
+@router.get("/appearance")
+async def get_appearance_settings(request: Request):
+    """Get current appearance settings (themes, page size)."""
+    config = request.app.state.config
+    themes = _list_available_themes(config)
+    return {
+        "success": True,
+        "data": {
+            "theme_light": config.theme_light,
+            "theme_dark": config.theme_dark,
+            "inbox_page_size": config.inbox_page_size,
+            "themes": themes,
+        },
+    }
+
+
+class AppearanceUpdate(BaseModel):
+    theme_light: str | None = None
+    theme_dark: str | None = None
+    inbox_page_size: int | None = None
+
+
+@router.post("/appearance")
+async def update_appearance_settings(body: AppearanceUpdate, request: Request):
+    """Update appearance settings (theme selections, page size)."""
+    config = request.app.state.config
+
+    config_path = Path("config.yaml")
+    if not config_path.exists():
+        raise HTTPException(status_code=500, detail="config.yaml not found")
+
+    config_data = yaml.safe_load(config_path.read_text()) or {}
+
+    if body.theme_light is not None:
+        config_data["theme_light"] = body.theme_light
+        config.theme_light = body.theme_light
+    if body.theme_dark is not None:
+        config_data["theme_dark"] = body.theme_dark
+        config.theme_dark = body.theme_dark
+    if body.inbox_page_size is not None:
+        if body.inbox_page_size not in (25, 50, 100, 0):
+            raise HTTPException(status_code=400, detail="Page size must be 25, 50, or 100 (0 for all)")
+        config_data["inbox_page_size"] = body.inbox_page_size
+        config.inbox_page_size = body.inbox_page_size
+
+    config_path.write_text(yaml.dump(config_data, default_flow_style=False))
+
+    logger.info(
+        "Appearance updated: light=%s, dark=%s, page_size=%s",
+        config.theme_light, config.theme_dark, config.inbox_page_size,
+    )
+
+    return {
+        "success": True,
+        "data": {
+            "theme_light": config.theme_light,
+            "theme_dark": config.theme_dark,
+            "inbox_page_size": config.inbox_page_size,
+        },
+    }
+
+
+class ThemeImport(BaseModel):
+    name: str
+    css: str
+
+
+@router.post("/theme/import")
+async def import_theme(body: ThemeImport, request: Request):
+    """Import a custom theme CSS file. Validates required --tiro-* variables."""
+    config = request.app.state.config
+
+    # Validate name (alphanumeric + hyphens only)
+    if not re.match(r"^[a-z0-9][a-z0-9-]*$", body.name):
+        raise HTTPException(status_code=400, detail="Theme name must be lowercase alphanumeric with hyphens")
+
+    if len(body.css) < 50:
+        raise HTTPException(status_code=400, detail="CSS content too short")
+
+    if len(body.css) > 50000:
+        raise HTTPException(status_code=400, detail="CSS content too large (max 50KB)")
+
+    missing = _validate_theme_css(body.css)
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Missing required CSS variables: {', '.join(missing[:5])}"
+            + (f" and {len(missing) - 5} more" if len(missing) > 5 else ""),
+        )
+
+    # Save to library/themes/
+    themes_dir = config.library / "themes"
+    themes_dir.mkdir(parents=True, exist_ok=True)
+    theme_path = themes_dir / f"{body.name}.css"
+    theme_path.write_text(body.css)
+
+    logger.info("Custom theme imported: %s (%d bytes)", body.name, len(body.css))
+
+    return {
+        "success": True,
+        "data": {
+            "name": body.name,
+            "path": f"/library/themes/{body.name}.css",
         },
     }

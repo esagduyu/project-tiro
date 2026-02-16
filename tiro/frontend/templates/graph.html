@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Tiro — Knowledge Graph{% endblock %}
+{% block nav_graph %}active{% endblock %}
 {% block content %}
 <style>
     .graph-header {
@@ -24,7 +25,7 @@
     }
     .graph-slider-label {
         font-size: 0.8rem;
-        color: var(--muted);
+        color: var(--tiro-muted);
         display: flex;
         align-items: center;
         gap: 0.4rem;
@@ -35,13 +36,13 @@
     }
     .graph-node-count {
         font-size: 0.8rem;
-        color: var(--muted);
+        color: var(--tiro-muted);
     }
     .graph-container {
         width: 100%;
-        border: 1px solid var(--border);
+        border: 1px solid var(--tiro-border);
         border-radius: 8px;
-        background: #fff;
+        background: var(--tiro-bg);
         overflow: hidden;
         position: relative;
     }
@@ -67,8 +68,8 @@
         bottom: 0;
         left: 0;
         right: 0;
-        background: #fff;
-        border-top: 1px solid var(--border);
+        background: var(--tiro-bg);
+        border-top: 1px solid var(--tiro-border);
         box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
         max-height: 40vh;
         overflow-y: auto;
@@ -95,11 +96,11 @@
         border: none;
         font-size: 1.4rem;
         cursor: pointer;
-        color: var(--muted);
+        color: var(--tiro-muted);
         padding: 0 0.25rem;
     }
     .graph-node-panel-close:hover {
-        color: var(--fg);
+        color: var(--tiro-fg);
     }
     .graph-node-panel-list {
         display: flex;
@@ -107,7 +108,7 @@
         gap: 0.4rem;
     }
     .graph-node-panel-list a {
-        color: var(--accent);
+        color: var(--tiro-accent);
         text-decoration: none;
         font-size: 0.9rem;
     }
@@ -115,7 +116,7 @@
         text-decoration: underline;
     }
     .graph-node-panel-list .muted {
-        color: var(--muted);
+        color: var(--tiro-muted);
         font-size: 0.8rem;
         margin-left: 0.5rem;
     }
@@ -128,18 +129,18 @@
         justify-content: center;
         gap: 0.75rem;
         padding: 4rem 1rem;
-        color: var(--muted);
+        color: var(--tiro-muted);
         font-size: 0.9rem;
     }
     .graph-empty {
         text-align: center;
         padding: 4rem 1rem;
-        color: var(--muted);
+        color: var(--tiro-muted);
     }
     .graph-empty h3 {
         font-size: 1.1rem;
         font-weight: 600;
-        color: var(--fg-secondary);
+        color: var(--tiro-fg-secondary);
         margin-bottom: 0.5rem;
     }
     .graph-empty p {
@@ -160,7 +161,6 @@
 <div class="graph-header">
     <div class="graph-title-row">
         <h2>Knowledge Graph</h2>
-        <a href="/" class="back-link">&larr; Back to inbox</a>
     </div>
     <div class="graph-controls">
         <label class="graph-slider-label">Min. articles:
@@ -526,7 +526,7 @@
             case 'b':
             case 'Escape':
                 e.preventDefault();
-                window.location.href = '/';
+                window.location.href = '/inbox';
                 break;
             case '?':
                 e.preventDefault();

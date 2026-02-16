@@ -4,8 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Tiro{% endblock %}</title>
-    <link id="theme-css" rel="stylesheet" href="/static/themes/papyrus.css?v=30">
-    <link rel="stylesheet" href="/static/styles.css?v=30">
+    <link rel="icon" href="/static/favicon.ico" sizes="any">
+    <link rel="icon" href="/static/favicon-32.png" type="image/png" sizes="32x32">
+    <link id="theme-css" rel="stylesheet" href="/static/themes/papyrus.css?v=38">
+    <link rel="stylesheet" href="/static/styles.css?v=38">
     <script>
     // Apply theme before render to prevent flash
     (function() {
@@ -13,7 +15,7 @@
         if (!mode) mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', mode);
         var theme = mode === 'dark' ? 'roman-night' : 'papyrus';
-        document.getElementById('theme-css').href = '/static/themes/' + theme + '.css?v=30';
+        document.getElementById('theme-css').href = '/static/themes/' + theme + '.css?v=38';
     })();
     </script>
 </head>
@@ -21,7 +23,7 @@
     <!-- Left sidebar navigation -->
     <nav id="sidebar" class="sidebar">
         <div class="sidebar-brand">
-            <a href="/inbox" class="sidebar-logo">T</a>
+            <a href="/inbox" class="sidebar-logo"><img src="/static/logo-128.png" alt="Tiro" width="28" height="28"></a>
             <span class="sidebar-title">Tiro</span>
         </div>
         <div class="sidebar-nav">
@@ -48,7 +50,10 @@
             </a>
         </div>
         <div class="sidebar-footer">
-            <button id="theme-toggle" class="sidebar-theme-toggle" title="Toggle dark mode">&#9728;</button>
+            <button id="theme-toggle" class="sidebar-theme-toggle" title="Toggle dark mode">
+                <span class="sidebar-icon">&#9728;</span>
+                <span class="sidebar-label" id="theme-label">Light</span>
+            </button>
             <a href="https://github.com/esagduyu/project-tiro" target="_blank" rel="noopener" class="sidebar-about">
                 <span class="sidebar-icon">&#9432;</span>
                 <span class="sidebar-label">About Tiro</span>
@@ -81,6 +86,6 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/static/app.js?v=30"></script>
+    <script src="/static/app.js?v=38"></script>
 </body>
 </html>

@@ -78,12 +78,14 @@ def process_article(
     config: TiroConfig,
     published_at: datetime | None = None,
     email_sender: str | None = None,
+    ingestion_method: str = "manual",
 ) -> dict:
     """Run the full storage pipeline: save markdown, insert SQLite, embed in ChromaDB.
 
     Args:
         published_at: Override published date (used by email connector for Date header).
         email_sender: Sender email address (used by email connector for source matching).
+        ingestion_method: How the article was saved (manual/extension/email/imap).
 
     Returns a dict of the created article metadata.
     """
@@ -142,8 +144,9 @@ def process_article(
         cursor = conn.execute(
             """INSERT INTO articles
                (source_id, title, author, url, slug, markdown_path,
-                word_count, reading_time_min, published_at, ingested_at)
-               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                word_count, reading_time_min, published_at, ingested_at,
+                ingestion_method)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
             (
                 source_id,
                 title,
@@ -155,6 +158,7 @@ def process_article(
                 reading_time_min,
                 pub_date.isoformat() if published_at else None,
                 now.isoformat(),
+                ingestion_method,
             ),
         )
         article_id = cursor.lastrowid

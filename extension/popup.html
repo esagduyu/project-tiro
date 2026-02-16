@@ -7,9 +7,9 @@
 
     body {
       width: 320px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      color: #1a1a1a;
-      background: #fafafa;
+      font-family: Georgia, 'Times New Roman', serif;
+      color: #2C2520;
+      background: #FAF6F0;
       font-size: 13px;
       line-height: 1.5;
     }
@@ -19,15 +19,17 @@
       align-items: center;
       gap: 8px;
       padding: 12px 14px;
-      border-bottom: 1px solid #e5e5e5;
+      border-bottom: 1px solid #E0D5C7;
+      background: #F5EDE3;
     }
 
-    .header img { width: 20px; height: 20px; }
+    .header img { width: 20px; height: 20px; border-radius: 4px; }
 
     .header span {
       font-weight: 700;
       font-size: 14px;
       letter-spacing: -0.01em;
+      color: #2C2520;
     }
 
     .content { padding: 14px; }
@@ -37,7 +39,7 @@
       font-weight: 600;
       line-height: 1.4;
       margin-bottom: 4px;
-      color: #1a1a1a;
+      color: #2C2520;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
@@ -46,7 +48,7 @@
 
     .page-url {
       font-size: 11px;
-      color: #888;
+      color: #8A7E72;
       margin-bottom: 12px;
       white-space: nowrap;
       overflow: hidden;
@@ -59,11 +61,11 @@
       gap: 8px;
       margin-bottom: 14px;
       font-size: 12px;
-      color: #444;
+      color: #5C534A;
     }
 
     .vip-row input[type="checkbox"] {
-      accent-color: #d97706;
+      accent-color: #B8943E;
       width: 14px;
       height: 14px;
     }
@@ -73,15 +75,16 @@
       padding: 10px;
       border: none;
       border-radius: 6px;
-      background: #2563eb;
-      color: white;
+      background: #C45B3E;
+      color: #FAF6F0;
       font-size: 13px;
       font-weight: 600;
+      font-family: inherit;
       cursor: pointer;
       transition: background 0.15s;
     }
 
-    .save-btn:hover { background: #1d4ed8; }
+    .save-btn:hover { background: #A84A30; }
 
     .save-btn:disabled {
       opacity: 0.6;
@@ -96,15 +99,15 @@
     .saving-text {
       text-align: center;
       padding: 20px 0;
-      color: #888;
+      color: #8A7E72;
       font-size: 13px;
     }
 
     .spinner {
       width: 24px;
       height: 24px;
-      border: 3px solid #e5e5e5;
-      border-top-color: #2563eb;
+      border: 3px solid #E0D5C7;
+      border-top-color: #C45B3E;
       border-radius: 50%;
       margin: 0 auto 10px;
       animation: spin 0.7s linear infinite;
@@ -117,6 +120,7 @@
       text-align: center;
       font-size: 28px;
       margin-bottom: 8px;
+      color: #6B7F4E;
     }
 
     .success-title {
@@ -128,7 +132,7 @@
 
     .success-source {
       font-size: 11px;
-      color: #888;
+      color: #8A7E72;
       text-align: center;
       margin-bottom: 12px;
     }
@@ -137,10 +141,10 @@
       display: block;
       width: 100%;
       padding: 8px;
-      border: 1px solid #e5e5e5;
+      border: 1px solid #E0D5C7;
       border-radius: 6px;
-      background: white;
-      color: #444;
+      background: #F5EDE3;
+      color: #5C534A;
       font-size: 12px;
       font-family: inherit;
       text-align: center;
@@ -150,8 +154,8 @@
     }
 
     .open-btn:hover {
-      border-color: #2563eb;
-      color: #2563eb;
+      border-color: #C45B3E;
+      color: #C45B3E;
     }
 
     /* Error state */
@@ -163,7 +167,7 @@
 
     .error-text {
       font-size: 12px;
-      color: #dc2626;
+      color: #C45B3E;
       text-align: center;
       margin-bottom: 12px;
       line-height: 1.5;
@@ -172,10 +176,10 @@
     .retry-btn {
       width: 100%;
       padding: 8px;
-      border: 1px solid #e5e5e5;
+      border: 1px solid #E0D5C7;
       border-radius: 6px;
-      background: white;
-      color: #444;
+      background: #F5EDE3;
+      color: #5C534A;
       font-size: 12px;
       font-family: inherit;
       cursor: pointer;
@@ -183,8 +187,8 @@
     }
 
     .retry-btn:hover {
-      border-color: #444;
-      color: #1a1a1a;
+      border-color: #C45B3E;
+      color: #C45B3E;
     }
 
     /* Already saved state */
@@ -199,7 +203,7 @@
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: #d97706;
+      color: #B8943E;
       text-align: center;
       margin-bottom: 6px;
     }
@@ -214,7 +218,7 @@
 
     .already-time {
       font-size: 11px;
-      color: #888;
+      color: #8A7E72;
       text-align: center;
       margin-bottom: 12px;
     }

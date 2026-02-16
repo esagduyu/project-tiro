@@ -123,6 +123,7 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     from tiro.api.routes_settings import router as settings_router
     from tiro.api.routes_audio import router as audio_router
     from tiro.api.routes_graph import router as graph_router
+    from tiro.api.routes_filters import router as filters_router
 
     app.include_router(ingest_router)
     app.include_router(articles_router)
@@ -137,14 +138,28 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     app.include_router(settings_router)
     app.include_router(audio_router)
     app.include_router(graph_router)
+    app.include_router(filters_router)
 
     # Static files and templates
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="static")
+    # Serve custom themes from library/themes/ if directory exists
+    library_themes = config.library / "themes"
+    library_themes.mkdir(parents=True, exist_ok=True)
+    app.mount("/library/themes", StaticFiles(directory=str(library_themes)), name="library_themes")
     templates = Jinja2Templates(directory=str(FRONTEND_DIR / "templates"))
 
     @app.get("/", response_class=HTMLResponse)
-    async def index(request: Request):
-        return templates.TemplateResponse("index.html", {"request": request})
+    async def index_redirect():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/inbox")
+
+    @app.get("/inbox", response_class=HTMLResponse)
+    async def inbox_page(request: Request):
+        return templates.TemplateResponse("inbox.html", {"request": request})
+
+    @app.get("/digest", response_class=HTMLResponse)
+    async def digest_page(request: Request):
+        return templates.TemplateResponse("digest.html", {"request": request})
 
     @app.get("/articles/{article_id}", response_class=HTMLResponse)
     async def reader(request: Request, article_id: int):

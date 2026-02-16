@@ -83,7 +83,7 @@ async function saveArticle() {
     var res = await fetch(TIRO_URL + '/api/ingest/url', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url: currentUrl }),
+      body: JSON.stringify({ url: currentUrl, ingestion_method: "extension" }),
     });
 
     var data = await res.json();

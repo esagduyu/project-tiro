@@ -1,4 +1,4 @@
-/* Tiro — Inbox + Digest frontend */
+/* Tiro — frontend */
 
 let digestData = null; // cached digest response
 let digestLoaded = false;
@@ -6,13 +6,105 @@ let currentSort = "newest"; // "newest" | "oldest" | "importance"
 let cachedArticles = []; // store articles for re-sorting without re-fetching
 let selectedIndex = -1; // keyboard-selected article index
 let showArchived = false; // whether to include decayed articles
+let showVIPOnly = false; // whether to filter to VIP articles only
+let currentPage = 1;
+let perPage = 50; // default page size
+let activeFilters = {}; // e.g. { is_read: "false", ai_tier: "must-read", tag: "AI" }
+let filterPanelOpen = false;
+let filterData = null; // cached /api/filters response
+
+/* ---- Theme management ---- */
+
+function applyTheme(mode) {
+    document.documentElement.setAttribute('data-theme', mode);
+    const themeLink = document.getElementById('theme-css');
+    const themeName = mode === 'dark' ? 'roman-night' : 'papyrus';
+    if (themeLink) themeLink.href = `/static/themes/${themeName}.css?v=38`;
+    document.querySelectorAll('#theme-toggle, #mobile-theme-toggle').forEach(btn => {
+        const icon = btn.querySelector('.sidebar-icon');
+        if (icon) {
+            icon.textContent = mode === 'dark' ? '\u263D' : '\u2600';
+        } else {
+            btn.textContent = mode === 'dark' ? '\u263D' : '\u2600';
+        }
+    });
+    const label = document.getElementById('theme-label');
+    if (label) label.textContent = mode === 'dark' ? 'Dark' : 'Light';
+    localStorage.setItem('tiro-mode', mode);
+}
+
+function toggleTheme() {
+    const current = localStorage.getItem('tiro-mode') || 'light';
+    applyTheme(current === 'dark' ? 'light' : 'dark');
+}
+
+/* ---- Mobile sidebar ---- */
+
+function openSidebar() {
+    document.getElementById('sidebar')?.classList.add('open');
+    document.getElementById('sidebar-overlay')?.classList.add('open');
+}
+
+function closeSidebar() {
+    document.getElementById('sidebar')?.classList.remove('open');
+    document.getElementById('sidebar-overlay')?.classList.remove('open');
+}
+
+/* ---- Unread badge ---- */
+
+async function updateUnreadBadge() {
+    try {
+        const res = await fetch('/api/articles?is_read=false&include_decayed=false&count_only=true');
+        const json = await res.json();
+        const badge = document.getElementById('unread-badge');
+        if (!badge) return;
+        const count = json.data?.count ?? 0;
+        if (count > 0) {
+            badge.textContent = count > 99 ? '99+' : count;
+            badge.style.display = '';
+        } else {
+            badge.style.display = 'none';
+        }
+    } catch (e) {}
+}
+
+/* ---- Init ---- */
 
 document.addEventListener("DOMContentLoaded", () => {
-    loadInbox();
-    setupViewTabs();
-    setupDigestTabs();
-    setupSearch();
-    setupSort();
+    // Theme toggles
+    document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
+    document.getElementById('mobile-theme-toggle')?.addEventListener('click', toggleTheme);
+
+    // Mobile sidebar
+    document.getElementById('mobile-menu-btn')?.addEventListener('click', openSidebar);
+    document.getElementById('sidebar-overlay')?.addEventListener('click', closeSidebar);
+
+    // Apply stored theme (reinforces the inline script in base.html)
+    const mode = localStorage.getItem('tiro-mode') || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+    applyTheme(mode);
+
+    // Unread badge
+    updateUnreadBadge();
+
+    // Page-specific init
+    if (document.getElementById("article-list")) {
+        restoreFiltersFromURL();
+        loadInbox();
+        loadFilters();
+        setupSearch();
+        setupSort();
+        setupFilterPanel();
+    }
+    if (document.querySelector(".view-tab")) {
+        setupViewTabs();
+    }
+    if (document.querySelector(".digest-tab")) {
+        setupDigestTabs();
+        // Auto-load digest if on the dedicated digest page (no view tabs = standalone)
+        if (!document.querySelector(".view-tab") && !digestLoaded) {
+            loadDigest(false);
+        }
+    }
     setupKeyboard();
 });
 
@@ -187,43 +279,115 @@ function timeAgo(then) {
 
 /* ---- Inbox (articles list) ---- */
 
+function buildQueryString() {
+    const params = new URLSearchParams();
+
+    // Pagination
+    if (perPage > 0) {
+        params.set("per_page", perPage);
+        params.set("page", currentPage);
+    }
+
+    // Sort
+    params.set("sort", currentSort);
+
+    // Archived / decayed
+    if (!showArchived) {
+        params.set("include_decayed", "false");
+    }
+
+    // Active filters
+    for (const [key, val] of Object.entries(activeFilters)) {
+        if (val !== null && val !== undefined && val !== "") {
+            params.set(key, val);
+        }
+    }
+
+    return params.toString();
+}
+
+function syncURLWithFilters() {
+    const params = new URLSearchParams();
+    for (const [key, val] of Object.entries(activeFilters)) {
+        if (val !== null && val !== undefined && val !== "") {
+            params.set(key, val);
+        }
+    }
+    if (currentSort !== "newest") params.set("sort", currentSort);
+    if (currentPage > 1) params.set("page", currentPage);
+    const qs = params.toString();
+    const url = "/inbox" + (qs ? "?" + qs : "");
+    window.history.replaceState({}, "", url);
+}
+
+function restoreFiltersFromURL() {
+    const params = new URLSearchParams(window.location.search);
+    const filterKeys = [
+        "is_read", "is_vip", "ai_tier", "author", "source_id", "tag",
+        "rating", "ingestion_method", "min_reading_time", "max_reading_time",
+        "has_audio", "date_from", "date_to",
+    ];
+    for (const key of filterKeys) {
+        if (params.has(key)) {
+            activeFilters[key] = params.get(key);
+        }
+    }
+    if (params.has("sort")) currentSort = params.get("sort");
+    if (params.has("page")) currentPage = parseInt(params.get("page"), 10) || 1;
+    // Update tab indicator after restoring filters
+    setTimeout(() => updateFilterTabIndicator(), 0);
+}
+
 async function loadInbox() {
     const listEl = document.getElementById("article-list");
-    if (!listEl) return; // Not on inbox page (e.g. reader)
+    if (!listEl) return;
     const emptyEl = document.getElementById("empty-state");
     const toolbar = document.getElementById("inbox-toolbar");
 
     try {
-        const url = showArchived ? "/api/articles?include_decayed=true" : "/api/articles?include_decayed=false";
-        const res = await fetch(url);
+        const qs = buildQueryString();
+        const res = await fetch(`/api/articles?${qs}`);
         const json = await res.json();
 
         if (!json.success || !json.data.length) {
-            emptyEl.style.display = "block";
-            if (toolbar) toolbar.style.display = "none";
+            emptyEl.style.display = Object.keys(activeFilters).length ? "none" : "block";
+            if (toolbar) toolbar.style.display = Object.keys(activeFilters).length ? "flex" : "none";
+            listEl.innerHTML = Object.keys(activeFilters).length
+                ? '<div class="filter-loading">No articles match these filters.</div>'
+                : "";
+            renderPagination(null);
             return;
         }
 
         cachedArticles = json.data;
         emptyEl.style.display = "none";
-        renderSortedInbox();
+        renderArticleList(cachedArticles);
         updateToolbar(cachedArticles);
+        renderPagination(json.pagination || null);
+        renderActiveFilters();
+        syncURLWithFilters();
     } catch (err) {
         console.error("Failed to load articles:", err);
         emptyEl.style.display = "block";
     }
 }
 
-function renderSortedInbox() {
+function renderArticleList(articles) {
     const listEl = document.getElementById("article-list");
-    const sorted = sortArticles(cachedArticles, currentSort);
-    listEl.innerHTML = sorted.map(renderArticle).join("");
+    // When using server-side pagination + sort, render as-is (already sorted by server)
+    // Only client-sort when per_page=0 (all articles loaded)
+    const toRender = perPage > 0 ? articles : sortArticles(articles, currentSort);
+    listEl.innerHTML = toRender.map(renderArticle).join("");
     attachListeners();
-    selectedIndex = -1; // reset keyboard selection on re-render
+    selectedIndex = -1;
 
-    // Sync the select element
     const sortSelect = document.getElementById("sort-select");
     if (sortSelect) sortSelect.value = currentSort;
+}
+
+function renderSortedInbox() {
+    // Re-render with client-side sort (used when per_page=0)
+    renderArticleList(cachedArticles);
 }
 
 function sortArticles(articles, mode) {
@@ -426,7 +590,11 @@ function setupSort() {
 
     sortSelect.addEventListener("change", () => {
         currentSort = sortSelect.value;
-        if (cachedArticles.length) {
+        currentPage = 1;
+        if (perPage > 0) {
+            // Server-side sort with pagination — must re-fetch
+            loadInbox();
+        } else if (cachedArticles.length) {
             renderSortedInbox();
         }
     });
@@ -446,8 +614,6 @@ function setupSearch() {
         input.value = initialQuery;
         clearBtn.style.display = "block";
         runSearch(initialQuery);
-        // Clean up URL without reloading
-        window.history.replaceState({}, "", "/");
     }
 
     let debounceTimer = null;
@@ -476,12 +642,6 @@ async function runSearch(query) {
     const listEl = document.getElementById("article-list");
     const emptyEl = document.getElementById("empty-state");
 
-    // Switch to articles view if on digest
-    const articlesTab = document.querySelector('.view-tab[data-view="articles"]');
-    if (articlesTab && !articlesTab.classList.contains("active")) {
-        articlesTab.click();
-    }
-
     try {
         const res = await fetch(`/api/search?q=${encodeURIComponent(query)}`);
         const json = await res.json();
@@ -507,6 +667,8 @@ async function runSearch(query) {
 }
 
 function exitSearch() {
+    currentPage = 1;
+    window.history.replaceState({}, "", "/inbox");
     loadInbox();
 }
 
@@ -568,6 +730,13 @@ function updateToolbar(articles) {
         }
     }
 
+    // VIP toggle
+    const vipToggle = document.getElementById("vip-toggle");
+    if (vipToggle) {
+        vipToggle.classList.toggle("active", showVIPOnly);
+        vipToggle.onclick = toggleVIPOnly;
+    }
+
     // Attach handlers (safe to call multiple times — we replace onclick)
     classifyBtn.onclick = classifyArticles;
     discardToggle.onclick = toggleDiscarded;
@@ -601,7 +770,9 @@ async function classifyArticles() {
 
         // Switch to importance sort and reload
         currentSort = "importance";
+        currentPage = 1;
         await loadInbox();
+        loadFilters(); // refresh filter counts
     } catch (err) {
         console.error("Classification failed:", err);
         classifyInfo.textContent = "Classification failed — check console";
@@ -639,6 +810,410 @@ function toggleDiscarded() {
     toggle.textContent = showing
         ? `Hide discarded (${count})`
         : `Show discarded (${count})`;
+}
+
+function toggleVIPOnly() {
+    showVIPOnly = !showVIPOnly;
+    const toggle = document.getElementById("vip-toggle");
+    if (toggle) toggle.classList.toggle("active", showVIPOnly);
+
+    if (showVIPOnly) {
+        // Client-side filter: show only VIP articles from cached list
+        const vipArticles = cachedArticles.filter(a => a.is_vip);
+        renderArticleList(vipArticles);
+    } else {
+        renderArticleList(cachedArticles);
+    }
+}
+
+/* ---- Filter panel ---- */
+
+function setupFilterPanel() {
+    const filterTab = document.getElementById("filter-tab");
+    const closeBtn = document.getElementById("filter-panel-close");
+    const clearAllBtn = document.getElementById("filter-clear-all");
+
+    function togglePanel() {
+        filterPanelOpen = !filterPanelOpen;
+        const panel = document.getElementById("filter-panel");
+        if (panel) panel.classList.toggle("open", filterPanelOpen);
+    }
+
+    if (filterTab) {
+        filterTab.addEventListener("click", togglePanel);
+    }
+
+    if (closeBtn) {
+        closeBtn.addEventListener("click", () => {
+            filterPanelOpen = false;
+            const panel = document.getElementById("filter-panel");
+            if (panel) panel.classList.remove("open");
+        });
+    }
+
+    if (clearAllBtn) {
+        clearAllBtn.addEventListener("click", () => {
+            activeFilters = {};
+            currentPage = 1;
+            loadInbox();
+            if (filterData) renderFilterPanelContent(filterData);
+            updateFilterTabIndicator();
+        });
+    }
+}
+
+function updateFilterTabIndicator() {
+    const tab = document.getElementById("filter-tab");
+    if (!tab) return;
+    const hasFilters = Object.keys(activeFilters).length > 0;
+    tab.classList.toggle("has-filters", hasFilters);
+}
+
+async function loadFilters() {
+    try {
+        const res = await fetch("/api/filters");
+        const json = await res.json();
+        if (json.success) {
+            filterData = json.data;
+            renderFilterPanelContent(json.data);
+        }
+    } catch (err) {
+        console.error("Failed to load filters:", err);
+    }
+}
+
+function renderFilterPanelContent(data) {
+    const body = document.getElementById("filter-panel-body");
+    if (!body) return;
+
+    let html = "";
+
+    // Read status
+    html += renderFilterSection("Status", [
+        { label: "Unread", value: "false", key: "is_read", count: data.read_status?.unread || 0 },
+        { label: "Read", value: "true", key: "is_read", count: data.read_status?.read || 0 },
+    ]);
+
+    // AI Tiers
+    if (data.tiers?.length) {
+        const tierLabels = { "must-read": "Must Read", "summary-enough": "Summary", "discard": "Discard", "unclassified": "Unclassified" };
+        const tierItems = data.tiers.map(t => ({
+            label: tierLabels[t.name] || t.name,
+            value: t.name,
+            key: "ai_tier",
+            count: t.count,
+        }));
+        html += renderFilterSection("Tier", tierItems);
+    }
+
+    // Ratings
+    if (data.ratings?.length) {
+        const ratingLabels = { loved: "\u2665 Loved", liked: "+ Liked", disliked: "\u2212 Disliked", unrated: "Unrated" };
+        const ratingItems = data.ratings.map(r => ({
+            label: ratingLabels[r.name] || r.name,
+            value: r.name,
+            key: "rating",
+            count: r.count,
+        }));
+        html += renderFilterSection("Rating", ratingItems);
+    }
+
+    // Sources
+    if (data.sources?.length) {
+        const sourceItems = data.sources.map(s => ({
+            label: (s.is_vip ? "\u2605 " : "") + s.name,
+            value: String(s.id),
+            key: "source_id",
+            count: s.count,
+        }));
+        html += renderFilterSection("Source", sourceItems, true);
+    }
+
+    // Tags
+    if (data.tags?.length) {
+        const tagItems = data.tags.map(t => ({
+            label: t.name,
+            value: t.name,
+            key: "tag",
+            count: t.count,
+        }));
+        html += renderFilterSection("Tag", tagItems, true);
+    }
+
+    // Ingestion method
+    if (data.ingestion_methods?.length) {
+        const methodLabels = { manual: "Manual", extension: "Extension", email: "Email", imap: "IMAP" };
+        const methodItems = data.ingestion_methods.map(m => ({
+            label: methodLabels[m.name] || m.name,
+            value: m.name,
+            key: "ingestion_method",
+            count: m.count,
+        }));
+        html += renderFilterSection("Source Type", methodItems);
+    }
+
+    // Reading time
+    if (data.reading_time) {
+        html += renderFilterSection("Reading Time", [
+            { label: "Quick (<5 min)", value: "quick", key: "_reading_time", count: data.reading_time.quick },
+            { label: "Medium (5-15 min)", value: "medium", key: "_reading_time", count: data.reading_time.medium },
+            { label: "Long (>15 min)", value: "long", key: "_reading_time", count: data.reading_time.long },
+        ]);
+    }
+
+    // Has audio
+    if (data.has_audio > 0) {
+        html += renderFilterSection("Audio", [
+            { label: "Has audio", value: "true", key: "has_audio", count: data.has_audio },
+        ]);
+    }
+
+    body.innerHTML = html;
+
+    // Wire up filter option clicks
+    body.querySelectorAll(".filter-option").forEach(opt => {
+        opt.addEventListener("click", () => {
+            const key = opt.dataset.key;
+            const value = opt.dataset.value;
+            toggleFilter(key, value);
+        });
+    });
+
+    // Show more toggles
+    body.querySelectorAll(".filter-show-more").forEach(btn => {
+        btn.addEventListener("click", () => {
+            const section = btn.closest(".filter-section");
+            const scroll = section?.querySelector(".filter-options-scroll");
+            if (scroll) {
+                scroll.style.maxHeight = scroll.style.maxHeight === "none" ? "200px" : "none";
+                btn.textContent = scroll.style.maxHeight === "none" ? "Show less" : "Show more";
+            }
+        });
+    });
+}
+
+function renderFilterSection(title, items, scrollable) {
+    const isActive = (item) => {
+        if (item.key === "_reading_time") {
+            // Special handling for reading time compound filter
+            if (item.value === "quick") return activeFilters.max_reading_time === "4";
+            if (item.value === "medium") return activeFilters.min_reading_time === "5" && activeFilters.max_reading_time === "15";
+            if (item.value === "long") return activeFilters.min_reading_time === "16";
+            return false;
+        }
+        return activeFilters[item.key] === item.value;
+    };
+
+    const optionsHtml = items.map(item =>
+        `<button class="filter-option${isActive(item) ? " active" : ""}"
+                data-key="${item.key}" data-value="${esc(item.value)}">
+            <span>${item.label}</span>
+            <span class="filter-option-count">${item.count}</span>
+        </button>`
+    ).join("");
+
+    const showMore = scrollable && items.length > 8
+        ? '<button class="filter-show-more">Show more</button>'
+        : "";
+
+    const wrapClass = scrollable ? "filter-options filter-options-scroll" : "filter-options";
+
+    return `<div class="filter-section">
+        <div class="filter-section-title">${title}</div>
+        <div class="${wrapClass}">${optionsHtml}</div>
+        ${showMore}
+    </div>`;
+}
+
+function toggleFilter(key, value) {
+    if (key === "_reading_time") {
+        // Special reading time handling
+        const wasActive = (value === "quick" && activeFilters.max_reading_time === "4")
+            || (value === "medium" && activeFilters.min_reading_time === "5" && activeFilters.max_reading_time === "15")
+            || (value === "long" && activeFilters.min_reading_time === "16");
+
+        delete activeFilters.min_reading_time;
+        delete activeFilters.max_reading_time;
+
+        if (!wasActive) {
+            if (value === "quick") { activeFilters.max_reading_time = "4"; }
+            else if (value === "medium") { activeFilters.min_reading_time = "5"; activeFilters.max_reading_time = "15"; }
+            else if (value === "long") { activeFilters.min_reading_time = "16"; }
+        }
+    } else {
+        // Toggle: if same value, remove; otherwise set
+        if (activeFilters[key] === value) {
+            delete activeFilters[key];
+        } else {
+            activeFilters[key] = value;
+        }
+    }
+
+    currentPage = 1;
+    loadInbox();
+    if (filterData) renderFilterPanelContent(filterData);
+    updateFilterTabIndicator();
+}
+
+function removeFilter(key) {
+    if (key === "_reading_time") {
+        delete activeFilters.min_reading_time;
+        delete activeFilters.max_reading_time;
+    } else {
+        delete activeFilters[key];
+    }
+    currentPage = 1;
+    loadInbox();
+    if (filterData) renderFilterPanelContent(filterData);
+    updateFilterTabIndicator();
+}
+
+/* ---- Active filter pills ---- */
+
+function renderActiveFilters() {
+    const container = document.getElementById("active-filters");
+    if (!container) return;
+
+    const pills = [];
+    const labelMap = {
+        is_read: v => v === "true" ? "Read" : "Unread",
+        is_vip: v => v === "true" ? "VIP" : "Not VIP",
+        ai_tier: v => ({ "must-read": "Must Read", "summary-enough": "Summary", "discard": "Discard", "unclassified": "Unclassified" })[v] || v,
+        author: v => `Author: ${v}`,
+        source_id: v => {
+            if (filterData?.sources) {
+                const s = filterData.sources.find(s => String(s.id) === v);
+                return s ? `Source: ${s.name}` : `Source #${v}`;
+            }
+            return `Source #${v}`;
+        },
+        tag: v => `Tag: ${v}`,
+        rating: v => ({ loved: "\u2665 Loved", liked: "Liked", disliked: "Disliked", unrated: "Unrated" })[v] || v,
+        ingestion_method: v => ({ manual: "Manual", extension: "Extension", email: "Email", imap: "IMAP" })[v] || v,
+        has_audio: () => "Has audio",
+    };
+
+    for (const [key, val] of Object.entries(activeFilters)) {
+        if (val === null || val === undefined || val === "") continue;
+        // Skip reading time sub-keys, handle as compound
+        if (key === "min_reading_time" || key === "max_reading_time") continue;
+        const label = labelMap[key] ? labelMap[key](val) : `${key}: ${val}`;
+        pills.push(`<span class="filter-pill" data-key="${key}" title="Click to remove">
+            ${esc(label)} <span class="filter-pill-x">&times;</span>
+        </span>`);
+    }
+
+    // Compound reading time pill
+    if (activeFilters.min_reading_time || activeFilters.max_reading_time) {
+        let label = "Reading time";
+        if (activeFilters.max_reading_time === "4") label = "Quick (<5 min)";
+        else if (activeFilters.min_reading_time === "5" && activeFilters.max_reading_time === "15") label = "Medium (5-15 min)";
+        else if (activeFilters.min_reading_time === "16") label = "Long (>15 min)";
+        pills.push(`<span class="filter-pill" data-key="_reading_time" title="Click to remove">
+            ${esc(label)} <span class="filter-pill-x">&times;</span>
+        </span>`);
+    }
+
+    if (pills.length) {
+        container.innerHTML = pills.join("");
+        container.style.display = "flex";
+        container.querySelectorAll(".filter-pill").forEach(pill => {
+            pill.addEventListener("click", () => removeFilter(pill.dataset.key));
+        });
+    } else {
+        container.style.display = "none";
+        container.innerHTML = "";
+    }
+}
+
+/* ---- Pagination ---- */
+
+function toRoman(num) {
+    const vals = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+    const syms = ["M", "CM", "D", "CD", "C", "XC", "L", "XL", "X", "IX", "V", "IV", "I"];
+    let result = "";
+    for (let i = 0; i < vals.length; i++) {
+        while (num >= vals[i]) { result += syms[i]; num -= vals[i]; }
+    }
+    return result;
+}
+
+function renderPagination(pagination) {
+    const container = document.getElementById("pagination");
+    if (!container) return;
+
+    if (!pagination || pagination.total_pages <= 1) {
+        container.style.display = "none";
+        return;
+    }
+
+    const { page, total_pages, total } = pagination;
+    let html = "";
+
+    // Previous
+    html += `<button class="page-link${page <= 1 ? " disabled" : ""}" data-page="${page - 1}">&laquo;</button>`;
+
+    // Page numbers (show max 7, with ellipsis)
+    const pages = getPageRange(page, total_pages, 7);
+    for (const p of pages) {
+        if (p === "...") {
+            html += `<span class="page-info">\u2026</span>`;
+        } else {
+            html += `<button class="page-link${p === page ? " active" : ""}" data-page="${p}">${toRoman(p)}</button>`;
+        }
+    }
+
+    // Next
+    html += `<button class="page-link${page >= total_pages ? " disabled" : ""}" data-page="${page + 1}">&raquo;</button>`;
+
+    // Info
+    html += `<span class="page-info">${total} articles</span>`;
+
+    container.innerHTML = html;
+    container.style.display = "flex";
+
+    // Wire clicks
+    container.querySelectorAll(".page-link:not(.disabled)").forEach(link => {
+        link.addEventListener("click", () => {
+            const p = parseInt(link.dataset.page, 10);
+            if (p >= 1 && p <= total_pages) {
+                currentPage = p;
+                loadInbox();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+        });
+    });
+}
+
+function getPageRange(current, total, maxVisible) {
+    if (total <= maxVisible) {
+        return Array.from({ length: total }, (_, i) => i + 1);
+    }
+
+    const pages = [];
+    const half = Math.floor(maxVisible / 2);
+    let start = Math.max(1, current - half);
+    let end = Math.min(total, start + maxVisible - 1);
+
+    if (end - start < maxVisible - 1) {
+        start = Math.max(1, end - maxVisible + 1);
+    }
+
+    if (start > 1) {
+        pages.push(1);
+        if (start > 2) pages.push("...");
+    }
+
+    for (let i = start; i <= end; i++) {
+        pages.push(i);
+    }
+
+    if (end < total) {
+        if (end < total - 1) pages.push("...");
+        pages.push(total);
+    }
+
+    return pages;
 }
 
 /* ---- Keyboard navigation ---- */
@@ -720,23 +1295,18 @@ function handleInboxKeydown(e) {
             break;
         case "d":
             e.preventDefault();
-            switchToDigest();
-            break;
-        case "a":
-            e.preventDefault();
-            switchToArticles();
+            window.location.href = "/digest";
             break;
         case "r":
             e.preventDefault();
-            // Generate or regenerate digest if in digest view
-            if (isDigestView()) {
+            // Generate or regenerate digest if on digest page
+            if (document.querySelector(".digest-tab")) {
                 loadDigest(digestLoaded);
             }
             break;
         case "c":
             e.preventDefault();
-            // Trigger classify/reclassify if in articles view
-            if (!isDigestView()) {
+            {
                 const btn = document.getElementById("classify-btn");
                 if (btn && !btn.disabled) btn.click();
             }
@@ -748,6 +1318,13 @@ function handleInboxKeydown(e) {
         case "v":
             e.preventDefault();
             window.location.href = "/graph";
+            break;
+        case "f":
+            e.preventDefault();
+            {
+                const tab = document.getElementById("filter-tab");
+                if (tab) tab.click();
+            }
             break;
         case "?":
             e.preventDefault();
@@ -809,20 +1386,6 @@ function rateSelected(cards, rating) {
     if (btn) btn.click();
 }
 
-function switchToDigest() {
-    const digestTab = document.querySelector('.view-tab[data-view="digest"]');
-    if (digestTab) digestTab.click();
-}
-
-function switchToArticles() {
-    const articlesTab = document.querySelector('.view-tab[data-view="articles"]');
-    if (articlesTab) articlesTab.click();
-}
-
-function isDigestView() {
-    const digestSection = document.getElementById("view-digest");
-    return digestSection && digestSection.style.display !== "none";
-}
 
 /* ---- Shortcuts overlay ---- */
 
@@ -832,8 +1395,7 @@ const INBOX_SHORTCUTS = [
     { keys: ["k"], desc: "Move up" },
     { keys: ["Enter"], desc: "Open selected article" },
     { keys: ["/"], desc: "Focus search bar" },
-    { keys: ["d"], desc: "Switch to digest view" },
-    { keys: ["a"], desc: "Switch to articles view" },
+    { keys: ["d"], desc: "Go to digest" },
     { keys: ["g"], desc: "Go to reading stats" },
     { keys: ["v"], desc: "Go to knowledge graph" },
     { section: "Actions" },
@@ -842,6 +1404,7 @@ const INBOX_SHORTCUTS = [
     { keys: ["2"], desc: "Rate like" },
     { keys: ["3"], desc: "Rate love" },
     { keys: ["c"], desc: "Classify / reclassify inbox" },
+    { keys: ["f"], desc: "Toggle filter panel" },
     { keys: ["r"], desc: "Regenerate digest (in digest view)" },
     { section: "General" },
     { keys: ["?"], desc: "Show this help" },
@@ -851,6 +1414,7 @@ const INBOX_SHORTCUTS = [
 const READER_SHORTCUTS = [
     { section: "Navigation" },
     { keys: ["b", "Esc"], desc: "Back to inbox" },
+    { keys: ["d"], desc: "Go to digest" },
     { keys: ["g"], desc: "Go to reading stats" },
     { keys: ["v"], desc: "Go to knowledge graph" },
     { section: "Actions" },

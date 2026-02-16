@@ -50,6 +50,7 @@ async def check_url(request: Request, url: str):
 
 class IngestURLRequest(BaseModel):
     url: HttpUrl
+    ingestion_method: str = "manual"
 
 
 @router.post("/url")
@@ -99,6 +100,7 @@ async def ingest_url(body: IngestURLRequest, request: Request):
             content_md=extracted["content_md"],
             url=extracted["url"],
             config=config,
+            ingestion_method=body.ingestion_method,
         )
     except Exception as e:
         logger.error("Failed to process article from %s: %s", url, e)
@@ -150,6 +152,7 @@ async def ingest_email(file: UploadFile, request: Request):
             config=config,
             published_at=extracted["published_at"],
             email_sender=extracted["email_sender"],
+            ingestion_method="email",
         )
     except Exception as e:
         logger.error("Failed to process email article: %s", e)
@@ -212,6 +215,7 @@ async def ingest_batch_email(body: BatchEmailRequest, request: Request):
                 config=config,
                 published_at=extracted["published_at"],
                 email_sender=extracted["email_sender"],
+                ingestion_method="email",
             )
             results["processed"].append({"file": filename, "id": article["id"], "title": article["title"]})
         except Exception as e:

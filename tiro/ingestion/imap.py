@@ -137,6 +137,7 @@ def _process_imap_message(
             config=config,
             published_at=extracted["published_at"],
             email_sender=extracted["email_sender"],
+            ingestion_method="imap",
         )
     except Exception as e:
         logger.error("Failed to ingest email '%s': %s", extracted["title"], e)

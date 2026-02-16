@@ -490,7 +490,7 @@ function setupReaderKeyboard(articleId) {
             case "b":
             case "Escape":
                 e.preventDefault();
-                window.location.href = "/";
+                window.location.href = "/inbox";
                 break;
             case "s":
                 e.preventDefault();
@@ -519,6 +519,10 @@ function setupReaderKeyboard(articleId) {
             case "r":
                 e.preventDefault();
                 readerRunAnalysis(articleId);
+                break;
+            case "d":
+                e.preventDefault();
+                window.location.href = "/digest";
                 break;
             case "g":
                 e.preventDefault();

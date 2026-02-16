@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 
 {% block title %}Tiro — Reading Stats{% endblock %}
+{% block nav_stats %}active{% endblock %}
 
 {% block content %}
 <div class="stats-header">
     <div class="stats-title-row">
         <h2>Reading Stats</h2>
-        <a href="/" class="back-link">&larr; Back to inbox</a>
     </div>
     <div class="stats-controls">
         <select id="period-select" class="sort-select">
@@ -409,7 +409,7 @@
             case 'b':
             case 'Escape':
                 e.preventDefault();
-                window.location.href = '/';
+                window.location.href = '/inbox';
                 break;
             case 'e':
                 e.preventDefault();
