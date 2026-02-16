@@ -854,6 +854,7 @@ const READER_SHORTCUTS = [
     { keys: ["3"], desc: "Rate love" },
     { keys: ["i"], desc: "Toggle analysis panel" },
     { keys: ["r"], desc: "Run / re-run analysis (panel open)" },
+    { keys: ["p"], desc: "Play / pause audio" },
     { section: "General" },
     { keys: ["?"], desc: "Show this help" },
 ];

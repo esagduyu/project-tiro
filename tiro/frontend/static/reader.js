@@ -123,6 +123,9 @@ async function loadArticle(id) {
         // Analysis panel
         setupAnalysis(a.id);
 
+        // Audio player
+        setupAudioPlayer(a.id, a.content || "");
+
         loadingEl.style.display = "none";
         contentEl.style.display = "block";
     } catch (err) {
@@ -505,6 +508,10 @@ function setupReaderKeyboard(articleId) {
                 e.preventDefault();
                 readerRate(2); // love
                 break;
+            case "p":
+                e.preventDefault();
+                toggleAudioPlayback();
+                break;
             case "i":
                 e.preventDefault();
                 readerToggleAnalysis();
@@ -558,4 +565,215 @@ function readerRunAnalysis(articleId) {
     } else {
         fetchAnalysis(articleId, true);
     }
+}
+
+/* --- Audio Player --- */
+
+let audioState = { fallback: false, playing: false };
+
+async function setupAudioPlayer(articleId, articleContent) {
+    const player = document.getElementById("audio-player");
+    if (!player) return;
+
+    try {
+        const res = await fetch(`/api/articles/${articleId}/audio/status`);
+        const json = await res.json();
+        if (!json.success) return;
+
+        const data = json.data;
+        player.style.display = "";
+
+        if (data.fallback) {
+            audioState.fallback = true;
+            setupFallbackPlayer(articleContent);
+        } else if (data.cached) {
+            showAudioControls(articleId, data.duration_seconds);
+        } else {
+            setupGenerateButton(articleId);
+        }
+    } catch (err) {
+        console.error("Audio status check failed:", err);
+    }
+}
+
+function setupGenerateButton(articleId) {
+    const genDiv = document.getElementById("audio-generate");
+    const genBtn = document.getElementById("audio-generate-btn");
+    genDiv.style.display = "";
+
+    genBtn.addEventListener("click", async () => {
+        genDiv.style.display = "none";
+        document.getElementById("audio-generating").style.display = "flex";
+
+        try {
+            const res = await fetch(`/api/articles/${articleId}/audio/generate`, {
+                method: "POST",
+            });
+            const json = await res.json();
+
+            if (!res.ok || !json.success) {
+                throw new Error(json.detail || "Generation failed");
+            }
+
+            document.getElementById("audio-generating").style.display = "none";
+            showAudioControls(articleId, json.data.duration_seconds);
+        } catch (err) {
+            console.error("Audio generation failed:", err);
+            document.getElementById("audio-generating").style.display = "none";
+            genDiv.style.display = "";
+            genBtn.textContent = "Generation failed — retry";
+        }
+    });
+}
+
+function showAudioControls(articleId, durationSeconds) {
+    document.getElementById("audio-generate").style.display = "none";
+    document.getElementById("audio-generating").style.display = "none";
+    const controls = document.getElementById("audio-controls");
+    controls.style.display = "flex";
+
+    const audio = document.getElementById("audio-el");
+    const playBtn = document.getElementById("audio-play-btn");
+    const progressWrap = document.querySelector(".audio-progress-wrap");
+    const progressFill = document.getElementById("audio-progress-fill");
+    const timeEl = document.getElementById("audio-time");
+    const speedBtn = document.getElementById("audio-speed-btn");
+
+    audio.src = `/api/articles/${articleId}/audio`;
+
+    if (durationSeconds) {
+        timeEl.textContent = `0:00 / ${formatAudioTime(durationSeconds)}`;
+    }
+
+    audio.addEventListener("loadedmetadata", () => {
+        timeEl.textContent = `0:00 / ${formatAudioTime(audio.duration)}`;
+    });
+
+    playBtn.addEventListener("click", toggleAudioPlayback);
+
+    audio.addEventListener("play", () => {
+        playBtn.innerHTML = "&#9646;&#9646;";
+        audioState.playing = true;
+    });
+    audio.addEventListener("pause", () => {
+        playBtn.innerHTML = "&#9654;";
+        audioState.playing = false;
+    });
+    audio.addEventListener("ended", () => {
+        playBtn.innerHTML = "&#9654;";
+        audioState.playing = false;
+        progressFill.style.width = "0%";
+    });
+
+    audio.addEventListener("timeupdate", () => {
+        if (audio.duration) {
+            const pct = (audio.currentTime / audio.duration) * 100;
+            progressFill.style.width = pct + "%";
+            timeEl.textContent =
+                formatAudioTime(audio.currentTime) + " / " + formatAudioTime(audio.duration);
+        }
+    });
+
+    progressWrap.addEventListener("click", (e) => {
+        if (!audio.duration) return;
+        const rect = progressWrap.getBoundingClientRect();
+        const pct = (e.clientX - rect.left) / rect.width;
+        audio.currentTime = pct * audio.duration;
+    });
+
+    const speeds = [1, 1.25, 1.5, 2];
+    let speedIndex = 0;
+    speedBtn.addEventListener("click", () => {
+        speedIndex = (speedIndex + 1) % speeds.length;
+        audio.playbackRate = speeds[speedIndex];
+        speedBtn.textContent = speeds[speedIndex] + "x";
+    });
+}
+
+function toggleAudioPlayback() {
+    if (audioState.fallback) {
+        toggleFallbackPlayback();
+        return;
+    }
+
+    const audio = document.getElementById("audio-el");
+    if (!audio || !audio.src) return;
+
+    if (audio.paused) {
+        audio.play();
+    } else {
+        audio.pause();
+    }
+}
+
+/* --- speechSynthesis fallback --- */
+
+function setupFallbackPlayer(articleContent) {
+    if (!window.speechSynthesis) return;
+
+    const genDiv = document.getElementById("audio-generate");
+    const genBtn = document.getElementById("audio-generate-btn");
+
+    genDiv.style.display = "";
+    genBtn.textContent = "Listen (browser voice)";
+    genBtn.classList.add("audio-fallback-btn");
+
+    genBtn.addEventListener("click", () => {
+        genDiv.style.display = "none";
+        const controls = document.getElementById("audio-controls");
+        controls.style.display = "flex";
+
+        document.querySelector(".audio-progress-wrap").style.display = "none";
+        document.getElementById("audio-speed-btn").style.display = "none";
+        document.getElementById("audio-time").textContent = "";
+
+        startFallbackSpeech(articleContent);
+    });
+}
+
+function startFallbackSpeech(text) {
+    const clean = text
+        .replace(/!\[[^\]]*\]\([^)]+\)/g, "")
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+        .replace(/\*{1,3}([^*]+)\*{1,3}/g, "$1")
+        .replace(/#{1,6}\s+/g, "")
+        .replace(/`[^`]+`/g, "")
+        .replace(/<[^>]+>/g, "")
+        .trim();
+
+    const utterance = new SpeechSynthesisUtterance(clean);
+    audioState.playing = true;
+
+    const playBtn = document.getElementById("audio-play-btn");
+    playBtn.innerHTML = "&#9646;&#9646;";
+
+    utterance.onend = () => {
+        playBtn.innerHTML = "&#9654;";
+        audioState.playing = false;
+    };
+
+    speechSynthesis.speak(utterance);
+}
+
+function toggleFallbackPlayback() {
+    if (!window.speechSynthesis) return;
+
+    const playBtn = document.getElementById("audio-play-btn");
+
+    if (speechSynthesis.speaking && !speechSynthesis.paused) {
+        speechSynthesis.pause();
+        playBtn.innerHTML = "&#9654;";
+        audioState.playing = false;
+    } else if (speechSynthesis.paused) {
+        speechSynthesis.resume();
+        playBtn.innerHTML = "&#9646;&#9646;";
+        audioState.playing = true;
+    }
+}
+
+function formatAudioTime(seconds) {
+    if (!seconds || !isFinite(seconds)) return "0:00";
+    const m = Math.floor(seconds / 60);
+    const s = Math.floor(seconds % 60);
+    return m + ":" + (s < 10 ? "0" : "") + s;
 }
