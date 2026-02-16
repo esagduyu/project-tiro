@@ -86,6 +86,7 @@ FastAPI Backend
   ├── Lightweight Processing (Haiku — tags, entities, summaries)
   ├── TTS Engine (OpenAI TTS streaming + speechSynthesis fallback)
   ├── Query Layer (ChromaDB semantic search + SQLite metadata)
+  ├── Knowledge Graph (d3.js force-directed visualization)
   └── MCP Server (7 tools for Claude integration)
   ↕
 Storage Layer (all local)
@@ -254,6 +255,7 @@ Also available via the API (`GET /api/export`) and the Export button on the Stat
 |-----|--------|
 | `b` / `Esc` | Back to inbox |
 | `e` | Export library |
+| `v` | Go to knowledge graph |
 | `?` | Show shortcuts overlay |
 
 ### Graph
