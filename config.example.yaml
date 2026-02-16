@@ -55,3 +55,10 @@ decay_threshold: 0.1
 # openai_api_key: "sk-..."
 # tts_voice: "nova"     # Options: alloy, echo, fable, onyx, nova, shimmer
 # tts_model: "tts-1"    # Options: tts-1 (fast), tts-1-hd (higher quality, 2x cost)
+
+# Inbox
+# inbox_page_size: 50   # Articles per page (25, 50, or 100)
+
+# Appearance
+# theme_light: "papyrus"      # Light theme CSS file name
+# theme_dark: "roman-night"   # Dark theme CSS file name

@@ -12,7 +12,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from tiro.config import TiroConfig, load_config
-from tiro.database import init_db
+from tiro.database import init_db, migrate_db
 from tiro.decay import recalculate_decay
 from tiro.vectorstore import init_vectorstore
 
@@ -58,8 +58,9 @@ async def lifespan(app: FastAPI):
     config.articles_dir.mkdir(parents=True, exist_ok=True)
     (config.library / "audio").mkdir(parents=True, exist_ok=True)
 
-    # Initialize SQLite
+    # Initialize SQLite + run migrations
     init_db(config.db_path)
+    migrate_db(config.db_path)
 
     # Initialize ChromaDB with configured embedding model
     init_vectorstore(config.chroma_dir, config.default_embedding_model)

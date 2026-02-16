@@ -52,6 +52,9 @@ class TiroConfig:
     openai_api_key: str | None = None
     tts_voice: str = "nova"
     tts_model: str = "tts-1"
+    inbox_page_size: int = 50
+    theme_light: str = "papyrus"
+    theme_dark: str = "roman-night"
 
     @property
     def library(self) -> Path:

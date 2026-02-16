@@ -37,7 +37,8 @@ CREATE TABLE IF NOT EXISTS articles (
     opened_count INTEGER DEFAULT 0,
     ai_tier TEXT,
     relevance_weight REAL DEFAULT 1.0,
-    ingenuity_analysis TEXT
+    ingenuity_analysis TEXT,
+    ingestion_method TEXT DEFAULT 'manual'
 );
 
 -- Tags (extracted topics)
@@ -126,5 +127,23 @@ def init_db(db_path: Path) -> None:
         conn.executescript(SCHEMA)
         conn.commit()
         logger.info("Database initialized at %s", db_path)
+    finally:
+        conn.close()
+
+
+def migrate_db(db_path: Path) -> None:
+    """Run schema migrations for backwards compatibility."""
+    conn = get_connection(db_path)
+    try:
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(articles)").fetchall()]
+        if "ingestion_method" not in cols:
+            conn.execute("ALTER TABLE articles ADD COLUMN ingestion_method TEXT DEFAULT 'manual'")
+            conn.execute("""
+                UPDATE articles SET ingestion_method = 'email'
+                WHERE source_id IN (SELECT id FROM sources WHERE source_type = 'email')
+                AND ingestion_method = 'manual'
+            """)
+            conn.commit()
+            logger.info("Migrated: added ingestion_method column")
     finally:
         conn.close()
