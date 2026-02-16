@@ -128,7 +128,7 @@ def cmd_run(args):
     app = create_app(config)
 
     host = "0.0.0.0" if args.lan else config.host
-    url = f"http://{config.host}:{config.port}"
+    url = f"http://localhost:{config.port}"
 
     lan_ip = None
     if args.lan:
@@ -151,7 +151,15 @@ def cmd_run(args):
 
     if not args.no_browser:
         def open_browser():
-            time.sleep(1.5)
+            import urllib.request
+            # Poll until the server is actually responding (up to 30s)
+            for _ in range(60):
+                time.sleep(0.5)
+                try:
+                    urllib.request.urlopen(f"http://127.0.0.1:{config.port}/api/filters", timeout=1)
+                    break
+                except Exception:
+                    continue
             webbrowser.open(url)
 
         threading.Thread(target=open_browser, daemon=True).start()
