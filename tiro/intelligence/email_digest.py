@@ -3,6 +3,7 @@
 import logging
 import smtplib
 from datetime import date, datetime
+from email.mime.image import MIMEImage
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
@@ -84,14 +85,26 @@ def send_digest_email(config: TiroConfig, all_sections: bool = False) -> dict:
     from_addr = config.smtp_user or "tiro@localhost"
     from_display = f"Tiro <{from_addr}>"
 
-    # Build the email
-    msg = MIMEMultipart("alternative")
+    # Build the email: multipart/related wraps multipart/alternative + inline image
+    msg = MIMEMultipart("related")
     msg["Subject"] = f"Tiro Daily Digest — {_format_date(today)}"
     msg["From"] = from_display
     msg["To"] = config.digest_email
 
-    msg.attach(MIMEText(plain_body, "plain", "utf-8"))
-    msg.attach(MIMEText(html_body, "html", "utf-8"))
+    # Text + HTML alternatives
+    msg_alt = MIMEMultipart("alternative")
+    msg_alt.attach(MIMEText(plain_body, "plain", "utf-8"))
+    msg_alt.attach(MIMEText(html_body, "html", "utf-8"))
+    msg.attach(msg_alt)
+
+    # Attach logo as inline CID image
+    logo_path = _get_logo_path()
+    if logo_path:
+        with open(logo_path, "rb") as f:
+            logo_img = MIMEImage(f.read(), _subtype="png")
+        logo_img.add_header("Content-ID", "<tiro-logo>")
+        logo_img.add_header("Content-Disposition", "inline", filename="logo.png")
+        msg.attach(logo_img)
 
     # Send via SMTP
     try:
@@ -139,15 +152,11 @@ def _format_date(iso_date: str) -> str:
     return d.strftime("%B %d, %Y").replace(" 0", " ")
 
 
-def _get_logo_data_uri() -> str:
-    """Get the Tiro logo as a base64 data URI for inline email embedding."""
-    import base64
+def _get_logo_path():
+    """Get the path to the Tiro logo for email embedding."""
     from pathlib import Path
     logo_path = Path(__file__).parent.parent / "frontend" / "static" / "logo-128.png"
-    if logo_path.exists():
-        data = base64.b64encode(logo_path.read_bytes()).decode()
-        return f"data:image/png;base64,{data}"
-    return ""
+    return logo_path if logo_path.exists() else None
 
 
 # Roman color palette (matches papyrus theme)
@@ -253,11 +262,11 @@ def _digest_to_html(markdown_content: str, config: TiroConfig) -> str:
     )
 
     today_str = _format_date(str(date.today()))
-    logo_uri = _get_logo_data_uri()
+    logo_path = _get_logo_path()
     logo_html = (
-        f'<img src="{logo_uri}" alt="Tiro" width="36" height="36" '
-        f'style="display: block; margin: 0 auto 6px; border-radius: 6px;">'
-        if logo_uri else
+        '<img src="cid:tiro-logo" alt="Tiro" width="36" height="36" '
+        'style="display: block; margin: 0 auto 6px; border-radius: 6px;">'
+        if logo_path else
         '<div style="font-size: 28px; margin-bottom: 4px;">&#8266;</div>'
     )
 
