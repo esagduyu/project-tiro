@@ -28,11 +28,16 @@ def send_digest_email(config: TiroConfig, all_sections: bool = False) -> dict:
     today = date.today().isoformat()
 
     if all_sections:
-        # Get or generate all 3 sections
+        # Get or generate all 3 sections (reuse cache if <24h old)
         cached = get_cached_digest(config, today)
         if cached and "ranked" in cached:
-            all_data = cached
             created_at = next(iter(cached.values()))["created_at"]
+            age_hours = (datetime.utcnow() - datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")).total_seconds() / 3600
+            if age_hours < 24:
+                all_data = cached
+            else:
+                all_data = generate_digest(config)
+                created_at = next(iter(all_data.values()))["created_at"]
         else:
             all_data = generate_digest(config)
             created_at = next(iter(all_data.values()))["created_at"]
@@ -49,11 +54,17 @@ def send_digest_email(config: TiroConfig, all_sections: bool = False) -> dict:
                 parts.append(f"## {heading}\n\n{all_data[key]['content']}")
         digest_content = "\n\n---\n\n".join(parts) if parts else "*No digest content available.*"
     else:
-        # Get or generate the ranked digest only
+        # Get or generate the ranked digest only (reuse cache if <24h old)
         cached = get_cached_digest(config, today, "ranked")
         if cached and "ranked" in cached:
-            digest_content = cached["ranked"]["content"]
             created_at = cached["ranked"]["created_at"]
+            age_hours = (datetime.utcnow() - datetime.strptime(created_at, "%Y-%m-%d %H:%M:%S")).total_seconds() / 3600
+            if age_hours < 24:
+                digest_content = cached["ranked"]["content"]
+            else:
+                result = generate_digest(config)
+                digest_content = result["ranked"]["content"]
+                created_at = result["ranked"]["created_at"]
         else:
             result = generate_digest(config)
             digest_content = result["ranked"]["content"]

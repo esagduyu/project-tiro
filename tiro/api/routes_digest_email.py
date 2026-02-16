@@ -18,7 +18,7 @@ async def send_digest(request: Request):
     config = request.app.state.config
 
     try:
-        result = await asyncio.to_thread(send_digest_email, config)
+        result = await asyncio.to_thread(send_digest_email, config, True)
         return {"success": True, "data": result}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
