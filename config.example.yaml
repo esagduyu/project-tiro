@@ -27,7 +27,12 @@ decay_threshold: 0.1
 
 # Digest email (optional)
 # digest_email: "you@example.com"
-# digest_schedule: "08:00"
+
+# Digest scheduling — auto-generate and email digests daily
+# digest_schedule_enabled: false
+# digest_schedule_time: "07:00"   # HH:MM in your local time
+# digest_unread_only: false       # Only include unread articles in digest
+# digest_timezone_offset: 0       # Auto-set from browser (JS getTimezoneOffset)
 
 # SMTP — for sending digest emails
 # For Gmail: smtp.gmail.com:587 with an App Password
