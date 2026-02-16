@@ -1144,6 +1144,12 @@ main {
 
 /* --- Reader view --- */
 
+.reader {
+    max-width: 700px;
+    margin-left: max(0px, calc(50% - 350px - 110px));
+    margin-right: auto;
+}
+
 .reader-loading,
 .reader-error {
     text-align: center;
@@ -1454,6 +1460,12 @@ main {
 }
 
 /* --- Digest view --- */
+
+.digest-view {
+    max-width: 700px;
+    margin-left: max(0px, calc(50% - 350px - 110px));
+    margin-right: auto;
+}
 
 .digest-tabs {
     display: flex;
@@ -2953,6 +2965,8 @@ main {
     .sidebar-about .sidebar-label { display: none; }
     .content { margin-left: 60px; }
     .inbox-main { margin-left: max(0px, calc(50% - 350px - 30px)); }
+    .reader { margin-left: max(0px, calc(50% - 350px - 30px)); }
+    .digest-view { margin-left: max(0px, calc(50% - 350px - 30px)); }
     /* Inbox toolbar: wrap on narrower screens */
     .inbox-toolbar { flex-wrap: wrap; gap: 0.4rem; }
 }
@@ -2975,11 +2989,11 @@ main {
     .article-card { padding: 0.75rem; }
     .article-meta { flex-wrap: wrap; gap: 0.2rem; }
     .article-tags { gap: 0.25rem; }
-    /* Reader: tighter */
-    .reader { padding: 0.75rem; }
+    /* Reader: tighter, normal centering */
+    .reader { padding: 0.75rem; margin-left: auto; }
     .reader-nav { flex-wrap: wrap; gap: 0.5rem; }
-    /* Digest: tighter */
-    .digest-container { padding: 0.75rem; }
+    /* Digest: tighter, normal centering */
+    .digest-view { padding: 0.75rem; margin-left: auto; }
     /* Stats: stack */
     .stats-header { flex-direction: column; align-items: flex-start; gap: 0.5rem; }
     .tiro-footer { padding: 2rem 0.75rem 1rem; }
