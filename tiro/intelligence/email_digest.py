@@ -139,6 +139,17 @@ def _format_date(iso_date: str) -> str:
     return d.strftime("%B %d, %Y").replace(" 0", " ")
 
 
+def _get_logo_data_uri() -> str:
+    """Get the Tiro logo as a base64 data URI for inline email embedding."""
+    import base64
+    from pathlib import Path
+    logo_path = Path(__file__).parent.parent / "frontend" / "static" / "logo-128.png"
+    if logo_path.exists():
+        data = base64.b64encode(logo_path.read_bytes()).decode()
+        return f"data:image/png;base64,{data}"
+    return ""
+
+
 # Roman color palette (matches papyrus theme)
 _COLORS = {
     "bg": "#FAF6F0",          # papyrus cream
@@ -242,6 +253,13 @@ def _digest_to_html(markdown_content: str, config: TiroConfig) -> str:
     )
 
     today_str = _format_date(str(date.today()))
+    logo_uri = _get_logo_data_uri()
+    logo_html = (
+        f'<img src="{logo_uri}" alt="Tiro" width="36" height="36" '
+        f'style="display: block; margin: 0 auto 6px; border-radius: 6px;">'
+        if logo_uri else
+        '<div style="font-size: 28px; margin-bottom: 4px;">&#8266;</div>'
+    )
 
     return f"""<!DOCTYPE html>
 <html>
@@ -249,7 +267,7 @@ def _digest_to_html(markdown_content: str, config: TiroConfig) -> str:
 <body style="font-family: Georgia, 'Times New Roman', serif; max-width: 640px; margin: 0 auto; padding: 20px; color: {c["fg"]}; background: {c["bg"]}; line-height: 1.6;">
     <div style="background: {c["surface"]}; border-radius: 6px; padding: 28px 32px; border: 1px solid {c["border"]};">
         <div style="text-align: center; margin-bottom: 24px; padding-bottom: 16px; border-bottom: 2px solid {c["accent"]};">
-            <div style="font-size: 28px; margin-bottom: 4px;">&#8266;</div>
+            {logo_html}
             <h1 style="margin: 0; font-size: 20px; color: {c["fg"]}; letter-spacing: 0.02em; font-weight: 600;">Tiro Daily Digest</h1>
             <p style="margin: 6px 0 0; font-size: 13px; color: {c["muted"]};">{today_str}</p>
         </div>
