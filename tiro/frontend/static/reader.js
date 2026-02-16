@@ -629,12 +629,20 @@ function showAudioControls(articleId, durationSeconds) {
 
     audio.src = `/api/articles/${articleId}/audio`;
 
-    if (durationSeconds) {
-        timeEl.textContent = `0:00 / ${formatAudioTime(durationSeconds)}`;
+    // Show duration if known (cached playback), otherwise just elapsed time
+    var knownDuration = durationSeconds || null;
+
+    if (knownDuration) {
+        timeEl.textContent = `0:00 / ${formatAudioTime(knownDuration)}`;
+    } else {
+        timeEl.textContent = "0:00";
     }
 
     audio.addEventListener("loadedmetadata", () => {
-        timeEl.textContent = `0:00 / ${formatAudioTime(audio.duration)}`;
+        if (audio.duration && isFinite(audio.duration)) {
+            knownDuration = audio.duration;
+            timeEl.textContent = `0:00 / ${formatAudioTime(audio.duration)}`;
+        }
     });
 
     playBtn.addEventListener("click", toggleAudioPlayback);
@@ -662,11 +670,14 @@ function showAudioControls(articleId, durationSeconds) {
     });
 
     audio.addEventListener("timeupdate", () => {
-        if (audio.duration) {
-            const pct = (audio.currentTime / audio.duration) * 100;
-            progressFill.style.width = pct + "%";
+        if (knownDuration) {
+            const pct = (audio.currentTime / knownDuration) * 100;
+            progressFill.style.width = Math.min(pct, 100) + "%";
             timeEl.textContent =
-                formatAudioTime(audio.currentTime) + " / " + formatAudioTime(audio.duration);
+                formatAudioTime(audio.currentTime) + " / " + formatAudioTime(knownDuration);
+        } else {
+            // Streaming — no total duration yet, show elapsed only
+            timeEl.textContent = formatAudioTime(audio.currentTime);
         }
     });
 
