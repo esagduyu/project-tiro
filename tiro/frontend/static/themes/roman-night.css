@@ -1,0 +1,24 @@
+/* Tiro Theme: Roman Night (dark) */
+:root {
+  --tiro-bg: #1C1A17;
+  --tiro-bg-surface: #2A2621;
+  --tiro-bg-hover: #36312B;
+  --tiro-fg: #E8E0D6;
+  --tiro-fg-secondary: #B5ADA3;
+  --tiro-muted: #7A7269;
+  --tiro-border: #3D3832;
+  --tiro-accent: #D46B4E;
+  --tiro-accent-hover: #B85A3F;
+  --tiro-secondary: #7F9460;
+  --tiro-secondary-hover: #6B7F4E;
+  --tiro-gold: #CCA94E;
+  --tiro-gold-hover: #B8943E;
+  --tiro-sidebar-bg: #242019;
+  --tiro-sidebar-active: #D46B4E;
+  --tiro-tier-must-read: #D46B4E;
+  --tiro-tier-summary: #7F9460;
+  --tiro-tier-discard: #7A7269;
+  --tiro-rate-love: #D46B4E;
+  --tiro-rate-like: #7F9460;
+  --tiro-rate-dislike: #7A7269;
+}

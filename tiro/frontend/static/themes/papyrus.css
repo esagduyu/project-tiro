@@ -1,0 +1,24 @@
+/* Tiro Theme: Papyrus (light) */
+:root {
+  --tiro-bg: #FAF6F0;
+  --tiro-bg-surface: #F5EDE3;
+  --tiro-bg-hover: #EDE4D8;
+  --tiro-fg: #2C2520;
+  --tiro-fg-secondary: #5C534A;
+  --tiro-muted: #9C9389;
+  --tiro-border: #DDD5CA;
+  --tiro-accent: #C45B3E;
+  --tiro-accent-hover: #A84A30;
+  --tiro-secondary: #6B7F4E;
+  --tiro-secondary-hover: #596B3F;
+  --tiro-gold: #B8943E;
+  --tiro-gold-hover: #9A7B33;
+  --tiro-sidebar-bg: #F0E8DC;
+  --tiro-sidebar-active: #C45B3E;
+  --tiro-tier-must-read: #C45B3E;
+  --tiro-tier-summary: #6B7F4E;
+  --tiro-tier-discard: #9C9389;
+  --tiro-rate-love: #C45B3E;
+  --tiro-rate-like: #6B7F4E;
+  --tiro-rate-dislike: #9C9389;
+}
