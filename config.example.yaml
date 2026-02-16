@@ -9,7 +9,7 @@ library_path: "./tiro-library"
 #            classification will be unavailable
 
 # Server
-host: "127.0.0.1"
+host: "127.0.0.1"   # Use "0.0.0.0" for LAN access, or run with: tiro run --lan
 port: 8000
 
 # Ingestion defaults

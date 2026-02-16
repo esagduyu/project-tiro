@@ -123,7 +123,19 @@ def cmd_run(args):
     config = load_config(args.config)
     app = create_app(config)
 
+    host = "0.0.0.0" if args.lan else config.host
     url = f"http://{config.host}:{config.port}"
+
+    if args.lan:
+        import socket
+        try:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.connect(("8.8.8.8", 80))
+            local_ip = s.getsockname()[0]
+            s.close()
+        except Exception:
+            local_ip = "your-ip"
+        print(f"LAN mode: accessible at http://{local_ip}:{config.port}")
 
     if not args.no_browser:
         def open_browser():
@@ -133,7 +145,7 @@ def cmd_run(args):
         threading.Thread(target=open_browser, daemon=True).start()
 
     print(f"Starting Tiro at {url}")
-    uvicorn.run(app, host=config.host, port=config.port)
+    uvicorn.run(app, host=host, port=config.port)
 
 
 def cmd_export(args):
@@ -344,6 +356,7 @@ def main():
 
     run_parser = subparsers.add_parser("run", help="Start the Tiro server")
     run_parser.add_argument("--no-browser", action="store_true", help="Don't auto-open browser")
+    run_parser.add_argument("--lan", action="store_true", help="Bind to 0.0.0.0 for LAN access (e.g. read on your phone)")
 
     export_parser = subparsers.add_parser("export", help="Export library as a zip bundle")
     export_parser.add_argument("--output", "-o", default="tiro-export.zip", help="Output zip file path")
