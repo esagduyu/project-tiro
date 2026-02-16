@@ -121,6 +121,7 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     from tiro.api.routes_digest_email import router as digest_email_router
     from tiro.api.routes_settings import router as settings_router
     from tiro.api.routes_audio import router as audio_router
+    from tiro.api.routes_graph import router as graph_router
 
     app.include_router(ingest_router)
     app.include_router(articles_router)
@@ -134,6 +135,7 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     app.include_router(export_router)
     app.include_router(settings_router)
     app.include_router(audio_router)
+    app.include_router(graph_router)
 
     # Static files and templates
     app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR / "static")), name="static")
@@ -154,5 +156,9 @@ def create_app(config: TiroConfig | None = None) -> FastAPI:
     @app.get("/settings", response_class=HTMLResponse)
     async def settings_page(request: Request):
         return templates.TemplateResponse("settings.html", {"request": request})
+
+    @app.get("/graph", response_class=HTMLResponse)
+    async def graph_page(request: Request):
+        return templates.TemplateResponse("graph.html", {"request": request})
 
     return app
