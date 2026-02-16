@@ -1,0 +1,576 @@
+{% extends "base.html" %}
+{% block title %}Tiro — Knowledge Graph{% endblock %}
+{% block content %}
+<style>
+    .graph-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 1rem;
+    }
+    .graph-title-row {
+        display: flex;
+        align-items: baseline;
+        gap: 1rem;
+    }
+    .graph-header h2 {
+        font-size: 1.15rem;
+        font-weight: 700;
+    }
+    .graph-controls {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+    }
+    .graph-slider-label {
+        font-size: 0.8rem;
+        color: var(--muted);
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+    }
+    .graph-slider {
+        width: 80px;
+        cursor: pointer;
+    }
+    .graph-node-count {
+        font-size: 0.8rem;
+        color: var(--muted);
+    }
+    .graph-container {
+        width: 100%;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: #fff;
+        overflow: hidden;
+        position: relative;
+    }
+    #graph-svg {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+    .graph-tooltip {
+        display: none;
+        position: absolute;
+        pointer-events: none;
+        background: rgba(26, 26, 26, 0.9);
+        color: #fff;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 0.78rem;
+        white-space: nowrap;
+        z-index: 100;
+    }
+    .graph-node-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #fff;
+        border-top: 1px solid var(--border);
+        box-shadow: 0 -4px 16px rgba(0,0,0,0.08);
+        max-height: 40vh;
+        overflow-y: auto;
+        z-index: 200;
+        padding: 1rem 2rem;
+        animation: slideUp 0.2s ease-out;
+    }
+    @keyframes slideUp {
+        from { transform: translateY(100%); }
+        to { transform: translateY(0); }
+    }
+    .graph-node-panel-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 0.75rem;
+    }
+    .graph-node-panel-header h3 {
+        font-size: 1rem;
+        font-weight: 600;
+    }
+    .graph-node-panel-close {
+        background: none;
+        border: none;
+        font-size: 1.4rem;
+        cursor: pointer;
+        color: var(--muted);
+        padding: 0 0.25rem;
+    }
+    .graph-node-panel-close:hover {
+        color: var(--fg);
+    }
+    .graph-node-panel-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+    }
+    .graph-node-panel-list a {
+        color: var(--accent);
+        text-decoration: none;
+        font-size: 0.9rem;
+    }
+    .graph-node-panel-list a:hover {
+        text-decoration: underline;
+    }
+    .graph-node-panel-list .muted {
+        color: var(--muted);
+        font-size: 0.8rem;
+        margin-left: 0.5rem;
+    }
+    .graph-node-panel-item {
+        padding: 0.25rem 0;
+    }
+    .graph-loading {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.75rem;
+        padding: 4rem 1rem;
+        color: var(--muted);
+        font-size: 0.9rem;
+    }
+    .graph-empty {
+        text-align: center;
+        padding: 4rem 1rem;
+        color: var(--muted);
+    }
+    .graph-empty h3 {
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--fg-secondary);
+        margin-bottom: 0.5rem;
+    }
+    .graph-empty p {
+        font-size: 0.85rem;
+    }
+    @media (max-width: 600px) {
+        .graph-header {
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.5rem;
+        }
+        .graph-node-panel {
+            padding: 0.75rem 1rem;
+        }
+    }
+</style>
+
+<div class="graph-header">
+    <div class="graph-title-row">
+        <h2>Knowledge Graph</h2>
+        <a href="/" class="back-link">&larr; Back to inbox</a>
+    </div>
+    <div class="graph-controls">
+        <label class="graph-slider-label">Min. articles:
+            <input type="range" id="min-articles" min="1" max="5" value="2" class="graph-slider">
+            <span id="min-articles-value">2</span>
+        </label>
+        <span id="graph-node-count" class="graph-node-count"></span>
+    </div>
+</div>
+
+<div id="graph-container" class="graph-container">
+    <svg id="graph-svg"></svg>
+</div>
+
+<div id="graph-loading" class="graph-loading">
+    <div class="digest-spinner"></div>
+    <p>Loading graph...</p>
+</div>
+
+<div id="graph-empty" class="graph-empty" style="display: none;">
+    <h3>No graph data yet</h3>
+    <p>Save some articles so Tiro can map the connections between entities and topics.</p>
+</div>
+
+<div id="graph-tooltip" class="graph-tooltip"></div>
+
+<div id="node-panel" class="graph-node-panel" style="display: none;">
+    <div class="graph-node-panel-header">
+        <h3 id="node-panel-title"></h3>
+        <button id="node-panel-close" class="graph-node-panel-close">&times;</button>
+    </div>
+    <div id="node-panel-list" class="graph-node-panel-list"></div>
+</div>
+
+<script src="https://d3js.org/d3.v7.min.js"></script>
+<script>
+(function() {
+    var slider = document.getElementById('min-articles');
+    var sliderValue = document.getElementById('min-articles-value');
+    var container = document.getElementById('graph-container');
+    var svg = d3.select('#graph-svg');
+    var tooltip = document.getElementById('graph-tooltip');
+    var nodeCountEl = document.getElementById('graph-node-count');
+    var nodePanel = document.getElementById('node-panel');
+    var nodePanelTitle = document.getElementById('node-panel-title');
+    var nodePanelList = document.getElementById('node-panel-list');
+    var nodePanelClose = document.getElementById('node-panel-close');
+    var loadingEl = document.getElementById('graph-loading');
+    var emptyEl = document.getElementById('graph-empty');
+
+    var simulation = null;
+    var selectedNodeId = null;
+
+    var typeColors = {
+        person: '#2563eb',
+        company: '#16a34a',
+        organization: '#d97706',
+        tag: '#999'
+    };
+
+    function escapeHtml(str) {
+        var span = document.createElement('span');
+        span.textContent = str || '';
+        return span.innerHTML;
+    }
+
+    function nodeRadius(d) {
+        return Math.max(5, Math.sqrt(d.count) * 4);
+    }
+
+    function setContainerHeight() {
+        var headerRect = document.querySelector('.graph-header').getBoundingClientRect();
+        var mainEl = document.querySelector('main');
+        var mainPad = parseFloat(getComputedStyle(mainEl).paddingBottom) || 48;
+        var available = window.innerHeight - headerRect.bottom - mainPad - 16;
+        container.style.height = Math.max(300, available) + 'px';
+    }
+
+    function renderGraph(data) {
+        // Stop any existing simulation
+        if (simulation) {
+            simulation.stop();
+            simulation = null;
+        }
+
+        // Clear SVG
+        svg.selectAll('*').remove();
+
+        if (!data.nodes || data.nodes.length === 0) {
+            container.style.display = 'none';
+            emptyEl.style.display = '';
+            nodeCountEl.textContent = '';
+            return;
+        }
+
+        container.style.display = '';
+        emptyEl.style.display = 'none';
+
+        setContainerHeight();
+
+        var width = container.clientWidth;
+        var height = container.clientHeight;
+
+        svg.attr('width', width).attr('height', height);
+
+        // Zoom behavior
+        var g = svg.append('g');
+
+        var zoom = d3.zoom()
+            .scaleExtent([0.2, 5])
+            .on('zoom', function(event) {
+                g.attr('transform', event.transform);
+            });
+
+        svg.call(zoom);
+
+        // Edges (drawn first, under nodes)
+        var link = g.append('g')
+            .attr('class', 'links')
+            .selectAll('line')
+            .data(data.edges)
+            .enter()
+            .append('line')
+            .attr('stroke', '#ddd')
+            .attr('stroke-width', function(d) { return Math.max(0.5, Math.log(d.weight + 1)); })
+            .attr('stroke-opacity', function(d) { return Math.min(0.8, 0.2 + d.weight * 0.1); });
+
+        // Nodes
+        var node = g.append('g')
+            .attr('class', 'nodes')
+            .selectAll('circle')
+            .data(data.nodes)
+            .enter()
+            .append('circle')
+            .attr('r', function(d) { return nodeRadius(d); })
+            .attr('fill', function(d) { return typeColors[d.type] || '#999'; })
+            .attr('stroke', '#fff')
+            .attr('stroke-width', 1.5)
+            .attr('cursor', 'pointer');
+
+        // Labels (only for nodes with count >= 4)
+        var label = g.append('g')
+            .attr('class', 'labels')
+            .selectAll('text')
+            .data(data.nodes.filter(function(d) { return d.count >= 4; }))
+            .enter()
+            .append('text')
+            .text(function(d) { return d.label; })
+            .attr('font-size', '10px')
+            .attr('fill', '#444')
+            .attr('text-anchor', 'middle')
+            .attr('dy', function(d) { return nodeRadius(d) + 12; })
+            .attr('pointer-events', 'none');
+
+        // Selection ring (hidden until a node is clicked)
+        var selectionRing = g.append('circle')
+            .attr('r', 0)
+            .attr('fill', 'none')
+            .attr('stroke', '#2563eb')
+            .attr('stroke-width', 2.5)
+            .attr('stroke-dasharray', '4,2')
+            .attr('pointer-events', 'none')
+            .style('display', 'none');
+
+        // Force simulation
+        simulation = d3.forceSimulation(data.nodes)
+            .alphaDecay(0.01)
+            .force('link', d3.forceLink(data.edges).id(function(d) { return d.id; }).distance(100))
+            .force('charge', d3.forceManyBody().strength(-150))
+            .force('center', d3.forceCenter(width / 2, height / 2))
+            .force('collide', d3.forceCollide().radius(function(d) { return nodeRadius(d) + 4; }));
+
+        simulation.on('tick', function() {
+            link
+                .attr('x1', function(d) { return d.source.x; })
+                .attr('y1', function(d) { return d.source.y; })
+                .attr('x2', function(d) { return d.target.x; })
+                .attr('y2', function(d) { return d.target.y; });
+
+            node
+                .attr('cx', function(d) { return d.x; })
+                .attr('cy', function(d) { return d.y; });
+
+            label
+                .attr('x', function(d) { return d.x; })
+                .attr('y', function(d) { return d.y; });
+
+            // Update selection ring if visible
+            if (selectedNodeId) {
+                var sel = data.nodes.find(function(n) { return n.id === selectedNodeId; });
+                if (sel) {
+                    selectionRing.attr('cx', sel.x).attr('cy', sel.y);
+                }
+            }
+        });
+
+        // Drag behavior
+        var drag = d3.drag()
+            .on('start', function(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            })
+            .on('drag', function(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            })
+            .on('end', function(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            });
+
+        node.call(drag);
+
+        // Hover tooltip
+        node.on('mouseover', function(event, d) {
+            tooltip.style.display = 'block';
+            tooltip.textContent = d.label + ' (' + d.type + ') \u2014 ' + d.count + ' article' + (d.count !== 1 ? 's' : '');
+            var rect = container.getBoundingClientRect();
+            tooltip.style.left = (event.clientX - rect.left + 12) + 'px';
+            tooltip.style.top = (event.clientY - rect.top - 8) + 'px';
+        });
+
+        node.on('mousemove', function(event) {
+            var rect = container.getBoundingClientRect();
+            tooltip.style.left = (event.clientX - rect.left + 12) + 'px';
+            tooltip.style.top = (event.clientY - rect.top - 8) + 'px';
+        });
+
+        node.on('mouseout', function() {
+            tooltip.style.display = 'none';
+        });
+
+        // Click node -> article panel
+        node.on('click', function(event, d) {
+            event.stopPropagation();
+            selectedNodeId = d.id;
+
+            // Show selection ring
+            selectionRing
+                .style('display', '')
+                .attr('cx', d.x)
+                .attr('cy', d.y)
+                .attr('r', nodeRadius(d) + 4);
+
+            // Parse type and id from node id (e.g. "entity:42" or "tag:5")
+            var parts = d.id.split(':');
+            var nodeType = parts[0];
+            var nodeDbId = parts[1];
+
+            nodePanelTitle.textContent = d.label + ' (' + d.type + ') \u2014 ' + d.count + ' article' + (d.count !== 1 ? 's' : '');
+            nodePanelList.innerHTML = '<div class="graph-loading" style="padding: 1rem 0;"><div class="digest-spinner"></div> Loading articles...</div>';
+            nodePanel.style.display = '';
+
+            fetch('/api/graph/node/' + encodeURIComponent(nodeType) + '/' + encodeURIComponent(nodeDbId) + '/articles')
+                .then(function(res) { return res.json(); })
+                .then(function(json) {
+                    if (!json.success || !json.data || json.data.length === 0) {
+                        nodePanelList.innerHTML = '<p style="color: var(--muted); font-size: 0.85rem;">No articles found.</p>';
+                        return;
+                    }
+                    nodePanelList.innerHTML = json.data.map(function(article) {
+                        return '<div class="graph-node-panel-item">' +
+                            '<a href="/articles/' + article.id + '">' + escapeHtml(article.title) + '</a>' +
+                            (article.source_name ? '<span class="muted">' + escapeHtml(article.source_name) + '</span>' : '') +
+                            '</div>';
+                    }).join('');
+                })
+                .catch(function() {
+                    nodePanelList.innerHTML = '<p style="color: var(--muted); font-size: 0.85rem;">Failed to load articles.</p>';
+                });
+        });
+
+        // Click background to deselect
+        svg.on('click', function() {
+            selectedNodeId = null;
+            selectionRing.style('display', 'none');
+            nodePanel.style.display = 'none';
+        });
+
+        // Update node count
+        nodeCountEl.textContent = data.nodes.length + ' node' + (data.nodes.length !== 1 ? 's' : '');
+    }
+
+    // Close panel button
+    nodePanelClose.addEventListener('click', function() {
+        nodePanel.style.display = 'none';
+        selectedNodeId = null;
+        svg.select('circle[stroke-dasharray]').style('display', 'none');
+    });
+
+    // Load data
+    function loadGraph() {
+        var minArticles = slider.value;
+        loadingEl.style.display = '';
+        container.style.display = 'none';
+        emptyEl.style.display = 'none';
+        nodePanel.style.display = 'none';
+        selectedNodeId = null;
+
+        fetch('/api/graph?min_articles=' + minArticles)
+            .then(function(res) { return res.json(); })
+            .then(function(json) {
+                loadingEl.style.display = 'none';
+                if (!json.success) {
+                    container.style.display = 'none';
+                    emptyEl.style.display = '';
+                    return;
+                }
+                renderGraph(json.data);
+            })
+            .catch(function(err) {
+                console.error('Failed to load graph data:', err);
+                loadingEl.style.display = 'none';
+                container.style.display = 'none';
+                emptyEl.style.display = '';
+            });
+    }
+
+    // Slider change
+    slider.addEventListener('input', function() {
+        sliderValue.textContent = slider.value;
+        loadGraph();
+    });
+
+    // Resize handler
+    window.addEventListener('resize', function() {
+        if (simulation) {
+            setContainerHeight();
+            var width = container.clientWidth;
+            var height = container.clientHeight;
+            svg.attr('width', width).attr('height', height);
+            simulation.force('center', d3.forceCenter(width / 2, height / 2));
+            simulation.alpha(0.3).restart();
+        }
+    });
+
+    // Initial load
+    loadGraph();
+
+    // --- Keyboard navigation ---
+    document.addEventListener('keydown', function(e) {
+        var tag = document.activeElement.tagName;
+        if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+            if (e.key === 'Escape') {
+                document.activeElement.blur();
+                e.preventDefault();
+            }
+            return;
+        }
+
+        var overlay = document.getElementById('shortcuts-overlay');
+        if (overlay && overlay.style.display !== 'none') {
+            if (e.key === '?' || e.key === 'Escape') {
+                overlay.style.display = 'none';
+                e.preventDefault();
+            }
+            return;
+        }
+
+        switch (e.key) {
+            case 'b':
+            case 'Escape':
+                e.preventDefault();
+                window.location.href = '/';
+                break;
+            case '?':
+                e.preventDefault();
+                showGraphShortcuts();
+                break;
+        }
+    });
+
+    var GRAPH_SHORTCUTS = [
+        { section: 'Navigation' },
+        { keys: ['b', 'Esc'], desc: 'Back to inbox' },
+        { section: 'Graph' },
+        { keys: ['drag'], desc: 'Drag nodes to reposition' },
+        { keys: ['scroll'], desc: 'Zoom in/out' },
+        { keys: ['click'], desc: 'View articles for a node' },
+        { section: 'General' },
+        { keys: ['?'], desc: 'Show this help' },
+    ];
+
+    function showGraphShortcuts() {
+        var overlay = document.getElementById('shortcuts-overlay');
+        var body = document.getElementById('shortcuts-body');
+        if (!overlay || !body) return;
+
+        body.innerHTML = GRAPH_SHORTCUTS.map(function(item) {
+            if (item.section) {
+                return '<div class="shortcut-section">' + item.section + '</div>';
+            }
+            var keys = item.keys.map(function(k) { return '<kbd>' + k + '</kbd>'; }).join(' / ');
+            return '<div class="shortcut-row"><span class="shortcut-keys">' + keys + '</span><span class="shortcut-desc">' + item.desc + '</span></div>';
+        }).join('');
+
+        overlay.style.display = 'flex';
+    }
+
+    // Close shortcuts overlay
+    var closeBtn = document.getElementById('shortcuts-close');
+    if (closeBtn) closeBtn.addEventListener('click', function() {
+        document.getElementById('shortcuts-overlay').style.display = 'none';
+    });
+    var overlayEl = document.getElementById('shortcuts-overlay');
+    if (overlayEl) overlayEl.addEventListener('click', function(e) {
+        if (e.target === overlayEl) overlayEl.style.display = 'none';
+    });
+})();
+</script>
+{% endblock %}
