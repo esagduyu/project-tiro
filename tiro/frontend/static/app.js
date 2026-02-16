@@ -19,7 +19,7 @@ function applyTheme(mode) {
     document.documentElement.setAttribute('data-theme', mode);
     const themeLink = document.getElementById('theme-css');
     const themeName = mode === 'dark' ? 'roman-night' : 'papyrus';
-    if (themeLink) themeLink.href = `/static/themes/${themeName}.css?v=38`;
+    if (themeLink) themeLink.href = `/static/themes/${themeName}.css?v=39`;
     document.querySelectorAll('#theme-toggle, #mobile-theme-toggle').forEach(btn => {
         const icon = btn.querySelector('.sidebar-icon');
         if (icon) {

@@ -6,8 +6,8 @@
     <title>{% block title %}Tiro{% endblock %}</title>
     <link rel="icon" href="/static/favicon.ico" sizes="any">
     <link rel="icon" href="/static/favicon-32.png" type="image/png" sizes="32x32">
-    <link id="theme-css" rel="stylesheet" href="/static/themes/papyrus.css?v=38">
-    <link rel="stylesheet" href="/static/styles.css?v=38">
+    <link id="theme-css" rel="stylesheet" href="/static/themes/papyrus.css?v=39">
+    <link rel="stylesheet" href="/static/styles.css?v=39">
     <script>
     // Apply theme before render to prevent flash
     (function() {
@@ -15,7 +15,7 @@
         if (!mode) mode = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', mode);
         var theme = mode === 'dark' ? 'roman-night' : 'papyrus';
-        document.getElementById('theme-css').href = '/static/themes/' + theme + '.css?v=38';
+        document.getElementById('theme-css').href = '/static/themes/' + theme + '.css?v=39';
     })();
     </script>
 </head>
@@ -86,6 +86,6 @@
         </div>
     </div>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="/static/app.js?v=38"></script>
+    <script src="/static/app.js?v=39"></script>
 </body>
 </html>
