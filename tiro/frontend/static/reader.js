@@ -524,6 +524,10 @@ function setupReaderKeyboard(articleId) {
                 e.preventDefault();
                 window.location.href = "/stats";
                 break;
+            case "v":
+                e.preventDefault();
+                window.location.href = "/graph";
+                break;
             case "?":
                 e.preventDefault();
                 if (typeof showShortcuts === "function") showShortcuts("reader");

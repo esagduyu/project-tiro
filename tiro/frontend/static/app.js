@@ -745,6 +745,10 @@ function handleInboxKeydown(e) {
             e.preventDefault();
             window.location.href = "/stats";
             break;
+        case "v":
+            e.preventDefault();
+            window.location.href = "/graph";
+            break;
         case "?":
             e.preventDefault();
             showShortcuts("inbox");
@@ -831,6 +835,7 @@ const INBOX_SHORTCUTS = [
     { keys: ["d"], desc: "Switch to digest view" },
     { keys: ["a"], desc: "Switch to articles view" },
     { keys: ["g"], desc: "Go to reading stats" },
+    { keys: ["v"], desc: "Go to knowledge graph" },
     { section: "Actions" },
     { keys: ["s"], desc: "Toggle VIP on selected source" },
     { keys: ["1"], desc: "Rate dislike" },
@@ -847,6 +852,7 @@ const READER_SHORTCUTS = [
     { section: "Navigation" },
     { keys: ["b", "Esc"], desc: "Back to inbox" },
     { keys: ["g"], desc: "Go to reading stats" },
+    { keys: ["v"], desc: "Go to knowledge graph" },
     { section: "Actions" },
     { keys: ["s"], desc: "Toggle VIP on source" },
     { keys: ["1"], desc: "Rate dislike" },
