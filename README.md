@@ -66,8 +66,8 @@ That's it. Save your first article by pasting a URL into the inbox.
 ### Productivity
 
 - **Keyboard-first** — Full `j`/`k`/`Enter`/`Esc` navigation, ratings with `1`/`2`/`3`, shortcuts overlay with `?`
-- **Gmail integration** — Send digest emails via Gmail SMTP, auto-ingest newsletters via IMAP label monitoring
-- **Settings page** — Configure email and TTS from the web UI
+- **Gmail integration** — Send digest emails via Gmail SMTP, auto-ingest newsletters via IMAP label monitoring with configurable auto-sync (every 5–60 min)
+- **Settings page** — Configure email, IMAP sync schedule, and TTS from the web UI
 - **Reading stats** — Charts showing articles saved/read, top topics, source engagement, reading streak
 - **Export** — Download your entire library as a portable zip (markdown files + metadata JSON)
 - **MCP server** — Query your library from Claude Desktop or Claude Code
