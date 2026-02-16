@@ -37,6 +37,26 @@
             <div id="reader-tags" class="article-tags"></div>
         </header>
         <div id="reader-summary" class="reader-summary"></div>
+        <div id="audio-player" class="audio-player" style="display: none;">
+            <div id="audio-generate" class="audio-generate">
+                <button id="audio-generate-btn" class="audio-generate-btn">Listen to this article</button>
+            </div>
+            <div id="audio-generating" class="audio-generating" style="display: none;">
+                <div class="audio-spinner"></div>
+                <span>Generating audio...</span>
+            </div>
+            <div id="audio-controls" class="audio-controls" style="display: none;">
+                <button id="audio-play-btn" class="audio-play-btn" title="Play/Pause">&#9654;</button>
+                <div class="audio-progress-wrap">
+                    <div id="audio-progress" class="audio-progress">
+                        <div id="audio-progress-fill" class="audio-progress-fill"></div>
+                    </div>
+                </div>
+                <span id="audio-time" class="audio-time">0:00 / 0:00</span>
+                <button id="audio-speed-btn" class="audio-speed-btn" title="Playback speed">1x</button>
+            </div>
+            <audio id="audio-el"></audio>
+        </div>
         <div id="reader-body" class="reader-body"></div>
         <section id="related-articles" class="related-articles" style="display: none;">
             <h3 class="related-header">Related in your library</h3>
@@ -82,5 +102,5 @@
     <div id="analysis-body" style="display: none;"></div>
 </div>
 <div id="analysis-overlay" class="analysis-overlay"></div>
-<script src="/static/reader.js?v=27"></script>
+<script src="/static/reader.js?v=28"></script>
 {% endblock %}
