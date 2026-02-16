@@ -118,24 +118,36 @@ def cmd_run(args):
     import uvicorn
 
     from tiro.config import load_config
-    from tiro.app import create_app
 
     config = load_config(args.config)
+
+    # Import app AFTER config is loaded — load_config sets env vars
+    # (ANTHROPIC_API_KEY, etc.) that router imports may depend on
+    from tiro.app import create_app
+
     app = create_app(config)
 
     host = "0.0.0.0" if args.lan else config.host
     url = f"http://{config.host}:{config.port}"
 
+    lan_ip = None
     if args.lan:
         import socket
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             s.connect(("8.8.8.8", 80))
-            local_ip = s.getsockname()[0]
+            lan_ip = s.getsockname()[0]
             s.close()
         except Exception:
-            local_ip = "your-ip"
-        print(f"LAN mode: accessible at http://{local_ip}:{config.port}")
+            lan_ip = None
+        if lan_ip:
+            print(f"LAN mode: accessible at http://{lan_ip}:{config.port}")
+        else:
+            print("LAN mode: binding to 0.0.0.0 (could not detect LAN IP)")
+
+    # Store LAN info on app state for the settings page
+    app.state.lan_mode = args.lan
+    app.state.lan_ip = lan_ip
 
     if not args.no_browser:
         def open_browser():

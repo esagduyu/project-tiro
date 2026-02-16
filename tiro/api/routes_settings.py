@@ -23,6 +23,24 @@ def _mask_password(pw: str | None) -> str | None:
     return pw[:2] + "*" * (len(pw) - 4) + pw[-2:]
 
 
+@router.get("/network")
+async def get_network_settings(request: Request):
+    """Get network/LAN access info."""
+    lan_mode = getattr(request.app.state, "lan_mode", False)
+    lan_ip = getattr(request.app.state, "lan_ip", None)
+    config = request.app.state.config
+    return {
+        "success": True,
+        "data": {
+            "lan_mode": lan_mode,
+            "lan_ip": lan_ip,
+            "lan_url": f"http://{lan_ip}:{config.port}" if lan_ip else None,
+            "host": config.host,
+            "port": config.port,
+        },
+    }
+
+
 @router.get("/email")
 async def get_email_settings(request: Request):
     """Get current email configuration (passwords masked)."""

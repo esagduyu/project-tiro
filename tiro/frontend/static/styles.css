@@ -2979,6 +2979,14 @@ main {
     }
     .sidebar.open { transform: translateX(0); }
     .sidebar-overlay.open { display: block; }
+    /* Restore labels hidden by the 1200px icon-only mode */
+    .sidebar-label, .sidebar-title, .sidebar-badge { display: unset; }
+    .sidebar-brand { justify-content: flex-start; }
+    .sidebar-logo { margin-right: 0.6rem; }
+    .sidebar-item { justify-content: flex-start; padding: 0.65rem 1rem; border-left: 3px solid transparent; border-bottom: none; }
+    .sidebar-item.active { border-left-color: var(--tiro-sidebar-active); border-bottom-color: transparent; }
+    .sidebar-footer { align-items: stretch; }
+    .sidebar-about .sidebar-label { display: unset; }
     .mobile-header { display: flex; }
     .content { margin-left: 0; padding-top: 60px; }
     /* Filter panel: full width on mobile */

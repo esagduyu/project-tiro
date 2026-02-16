@@ -42,6 +42,14 @@ uv run tiro run               # starts server at localhost:8000, opens browser
 
 That's it. Save your first article by pasting a URL into the inbox.
 
+**Read on your phone or tablet:** Run with `--lan` to make Tiro accessible from any device on your local network:
+
+```bash
+uv run tiro run --lan         # binds to 0.0.0.0, prints your LAN IP
+```
+
+Then open `http://<your-ip>:8000` on your phone. The mobile UI has a responsive sidebar and touch-friendly controls.
+
 > **Tip:** If you use `direnv`, set `ANTHROPIC_API_KEY` in your `.envrc` instead of adding it to config.yaml.
 >
 > **Note:** All `tiro` commands should be run with `uv run tiro` so they execute inside the project's virtual environment.
@@ -123,6 +131,7 @@ Storage Layer (all local)
 |---------|-------------|
 | `uv run tiro init` | Initialize library, create databases, prompt for API keys + email setup |
 | `uv run tiro run` | Start server at localhost:8000 and open browser |
+| `uv run tiro run --lan` | Start server accessible on local network (binds to 0.0.0.0) |
 | `uv run tiro run --no-browser` | Start server without opening browser |
 | `uv run tiro export -o backup.zip` | Export library as zip (supports `--tag`, `--source-id`, `--rating-min`, `--date-from` filters) |
 | `uv run tiro import-emails ./newsletters/` | Bulk import .eml files from a directory |

@@ -10,6 +10,13 @@
     </div>
 </div>
 
+<!-- Network Access (only visible in LAN mode) -->
+<div id="network-section" class="settings-section" style="display: none;">
+    <h3 class="settings-section-title">Network Access</h3>
+    <p class="settings-section-desc">Tiro is accessible on your local network.</p>
+    <div id="network-status" class="settings-status"></div>
+</div>
+
 <!-- Appearance -->
 <div class="settings-section">
     <h3 class="settings-section-title">Appearance</h3>
@@ -82,6 +89,40 @@
 (function() {
     let appearanceData = null;
     let emailData = null;
+
+    // --- Network Access ---
+    async function loadNetworkSettings() {
+        try {
+            var res = await fetch('/api/settings/network');
+            var json = await res.json();
+            if (!json.success || !json.data.lan_mode) return;
+
+            var section = document.getElementById('network-section');
+            var statusEl = document.getElementById('network-status');
+            section.style.display = '';
+
+            var d = json.data;
+            var html = '<div class="status-card">';
+            html += '<div class="status-card-header">';
+            html += '<span class="status-indicator status-ok"></span>';
+            html += '<strong>LAN Mode Active</strong>';
+            html += '</div>';
+            if (d.lan_url) {
+                html += '<div class="status-detail">Access from other devices at:</div>';
+                html += '<div class="status-detail" style="font-family: monospace; font-size: 1.05rem; margin-top: 0.25rem;">';
+                html += '<a href="' + escapeHtml(d.lan_url) + '" style="color: var(--tiro-gold);">' + escapeHtml(d.lan_url) + '</a>';
+                html += '</div>';
+                html += '<div class="status-detail muted" style="margin-top: 0.4rem;">Phone, tablet, or any device on the same WiFi network.</div>';
+            } else {
+                html += '<div class="status-detail">Listening on all interfaces (0.0.0.0:' + d.port + ')</div>';
+                html += '<div class="status-detail muted">Could not detect LAN IP. Use your machine\'s IP address.</div>';
+            }
+            html += '</div>';
+            statusEl.innerHTML = html;
+        } catch (err) {
+            // Not critical — just don't show the section
+        }
+    }
 
     // --- Appearance Settings ---
     async function loadAppearanceSettings() {
@@ -838,6 +879,7 @@
     });
 
     // Load on init
+    loadNetworkSettings();
     loadAppearanceSettings();
     loadEmailSettings();
     loadTtsSettings();
