@@ -210,7 +210,8 @@ def _interactive_email_setup(config_path: Path):
         config_data["imap_password"] = app_password
         config_data["imap_label"] = label
         config_data["imap_enabled"] = True
-        print(f"  IMAP configured: imap.gmail.com:993, label='{label}'")
+        config_data["imap_sync_interval"] = 15
+        print(f"  IMAP configured: imap.gmail.com:993, label='{label}', sync every 15 min")
 
     config_path.write_text(yaml.dump(config_data, default_flow_style=False))
     print(f"\nEmail settings saved to {config_path}")

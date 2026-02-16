@@ -47,6 +47,7 @@ decay_threshold: 0.1
 # imap_password: "your-gmail-app-password"
 # imap_label: "tiro"
 # imap_enabled: true
+# imap_sync_interval: 15   # minutes (0 = manual only, default 15 when configured)
 
 # Text-to-Speech (optional)
 # Tiro can read articles aloud using OpenAI's TTS API.

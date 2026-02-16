@@ -48,6 +48,7 @@ class TiroConfig:
     imap_password: str | None = None
     imap_label: str = "tiro"
     imap_enabled: bool = False
+    imap_sync_interval: int = 0  # minutes, 0 = manual only
     openai_api_key: str | None = None
     tts_voice: str = "nova"
     tts_model: str = "tts-1"

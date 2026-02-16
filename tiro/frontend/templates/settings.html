@@ -106,6 +106,8 @@
         if (data.imap_configured) {
             html += '<div class="status-detail">' + escapeHtml(data.imap_user) + '</div>';
             html += '<div class="status-detail muted">Label: ' + escapeHtml(data.imap_label) + '</div>';
+            var syncText = data.imap_sync_interval > 0 ? 'Auto-sync every ' + data.imap_sync_interval + ' min' : 'Manual only';
+            html += '<div class="status-detail muted">' + syncText + '</div>';
         } else {
             html += '<div class="status-detail muted">Not configured</div>';
         }
@@ -198,6 +200,7 @@
 
         var prefillAddress = (emailData && emailData.smtp_user) || (emailData && emailData.imap_user) || '';
         var prefillLabel = (emailData && emailData.imap_label) || 'tiro';
+        var prefillInterval = (emailData && emailData.imap_sync_interval) || 15;
         var smtpChecked = emailData ? emailData.smtp_configured : true;
         var imapChecked = emailData ? emailData.imap_configured : true;
 
@@ -231,6 +234,17 @@
                         '<label>Gmail label to monitor</label>' +
                         '<input type="text" id="cfg-label" placeholder="tiro" value="' + escapeHtml(prefillLabel) + '">' +
                     '</div>' +
+                    '<div class="settings-field" id="cfg-interval-field">' +
+                        '<label>Auto-sync interval</label>' +
+                        '<select id="cfg-interval">' +
+                            '<option value="0"' + (prefillInterval === 0 ? ' selected' : '') + '>Manual only</option>' +
+                            '<option value="5"' + (prefillInterval === 5 ? ' selected' : '') + '>Every 5 minutes</option>' +
+                            '<option value="10"' + (prefillInterval === 10 ? ' selected' : '') + '>Every 10 minutes</option>' +
+                            '<option value="15"' + (prefillInterval === 15 ? ' selected' : '') + '>Every 15 minutes</option>' +
+                            '<option value="30"' + (prefillInterval === 30 ? ' selected' : '') + '>Every 30 minutes</option>' +
+                            '<option value="60"' + (prefillInterval === 60 ? ' selected' : '') + '>Every 60 minutes</option>' +
+                        '</select>' +
+                    '</div>' +
                 '</div>' +
                 '<div class="settings-modal-actions">' +
                     '<button class="settings-cancel-btn" id="modal-cancel">Cancel</button>' +
@@ -242,11 +256,14 @@
         // Toggle label field visibility
         var receiveCheckbox = document.getElementById('cfg-receive');
         var labelField = document.getElementById('cfg-label-field');
-        function toggleLabel() {
-            labelField.style.display = receiveCheckbox.checked ? '' : 'none';
+        var intervalField = document.getElementById('cfg-interval-field');
+        function toggleReceiveFields() {
+            var show = receiveCheckbox.checked ? '' : 'none';
+            labelField.style.display = show;
+            intervalField.style.display = show;
         }
-        receiveCheckbox.addEventListener('change', toggleLabel);
-        toggleLabel();
+        receiveCheckbox.addEventListener('change', toggleReceiveFields);
+        toggleReceiveFields();
 
         // Close handlers
         document.getElementById('modal-close').addEventListener('click', function() { overlay.remove(); });
@@ -263,6 +280,7 @@
             var enableSend = document.getElementById('cfg-send').checked;
             var enableReceive = document.getElementById('cfg-receive').checked;
             var label = document.getElementById('cfg-label').value.trim() || 'tiro';
+            var syncInterval = parseInt(document.getElementById('cfg-interval').value) || 0;
 
             if (!gmail || !password) {
                 showToast('Gmail address and app password are required', 'error');
@@ -288,6 +306,7 @@
                         enable_send: enableSend,
                         enable_receive: enableReceive,
                         imap_label: label,
+                        imap_sync_interval: syncInterval,
                     }),
                 });
                 var json = await res.json();

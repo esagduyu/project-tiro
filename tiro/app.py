@@ -1,5 +1,6 @@
 """FastAPI application for Tiro."""
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -20,6 +21,34 @@ logger = logging.getLogger(__name__)
 FRONTEND_DIR = Path(__file__).parent / "frontend"
 
 
+async def _imap_sync_loop(config: TiroConfig):
+    """Background task that checks IMAP inbox on a schedule."""
+    from tiro.ingestion.imap import check_imap_inbox
+
+    while True:
+        interval = config.imap_sync_interval
+        if interval <= 0 or not config.imap_enabled:
+            return
+
+        await asyncio.sleep(interval * 60)
+
+        if not config.imap_enabled or config.imap_sync_interval <= 0:
+            return
+
+        try:
+            result = await asyncio.to_thread(check_imap_inbox, config)
+            if result["fetched"] > 0:
+                logger.info(
+                    "IMAP sync: %d fetched, %d processed, %d skipped, %d failed",
+                    result["fetched"], result["processed"],
+                    result["skipped"], result["failed"],
+                )
+            else:
+                logger.debug("IMAP sync: no new messages")
+        except Exception as e:
+            logger.error("IMAP sync failed: %s", e)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database and vectorstore on startup."""
@@ -38,8 +67,22 @@ async def lifespan(app: FastAPI):
     # Recalculate content decay weights
     recalculate_decay(config)
 
+    # Start IMAP sync background task if configured
+    sync_task = None
+    if config.imap_enabled and config.imap_sync_interval > 0:
+        sync_task = asyncio.create_task(_imap_sync_loop(config))
+        logger.info("IMAP sync started: every %d minutes", config.imap_sync_interval)
+
     logger.info("Tiro is ready — library at %s", config.library)
     yield
+
+    # Cancel sync task on shutdown
+    if sync_task:
+        sync_task.cancel()
+        try:
+            await sync_task
+        except asyncio.CancelledError:
+            pass
 
 
 def create_app(config: TiroConfig | None = None) -> FastAPI:

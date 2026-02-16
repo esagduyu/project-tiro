@@ -43,6 +43,7 @@ async def get_email_settings(request: Request):
             "imap_password_masked": _mask_password(config.imap_password),
             "imap_label": config.imap_label,
             "imap_enabled": config.imap_enabled,
+            "imap_sync_interval": config.imap_sync_interval,
         },
     }
 
@@ -53,6 +54,7 @@ class EmailSettingsUpdate(BaseModel):
     enable_send: bool = False
     enable_receive: bool = False
     imap_label: str = "tiro"
+    imap_sync_interval: int = 15
 
 
 @router.post("/email")
@@ -88,6 +90,7 @@ async def update_email_settings(body: EmailSettingsUpdate, request: Request):
         config_data["imap_password"] = body.app_password
         config_data["imap_label"] = body.imap_label
         config_data["imap_enabled"] = True
+        config_data["imap_sync_interval"] = body.imap_sync_interval
 
     config_path.write_text(yaml.dump(config_data, default_flow_style=False))
 
@@ -107,6 +110,7 @@ async def update_email_settings(body: EmailSettingsUpdate, request: Request):
         config.imap_password = body.app_password
         config.imap_label = body.imap_label
         config.imap_enabled = True
+        config.imap_sync_interval = body.imap_sync_interval
 
     logger.info("Email settings updated: send=%s, receive=%s", body.enable_send, body.enable_receive)
 
