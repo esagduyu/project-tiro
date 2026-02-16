@@ -48,6 +48,9 @@ class TiroConfig:
     imap_password: str | None = None
     imap_label: str = "tiro"
     imap_enabled: bool = False
+    openai_api_key: str | None = None
+    tts_voice: str = "nova"
+    tts_model: str = "tts-1"
 
     @property
     def library(self) -> Path:
@@ -87,5 +90,9 @@ def load_config(config_path: str | Path = "config.yaml") -> TiroConfig:
     # Set ANTHROPIC_API_KEY env var from config if not already set
     if config.anthropic_api_key and not os.environ.get("ANTHROPIC_API_KEY"):
         os.environ["ANTHROPIC_API_KEY"] = config.anthropic_api_key
+
+    # Set OPENAI_API_KEY env var from config if not already set
+    if config.openai_api_key and not os.environ.get("OPENAI_API_KEY"):
+        os.environ["OPENAI_API_KEY"] = config.openai_api_key
 
     return config

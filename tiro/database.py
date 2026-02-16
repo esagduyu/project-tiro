@@ -95,6 +95,17 @@ CREATE TABLE IF NOT EXISTS reading_stats (
     total_reading_time_min INTEGER DEFAULT 0,
     PRIMARY KEY (date)
 );
+
+-- Audio cache (TTS-generated MP3 files linked to articles)
+CREATE TABLE IF NOT EXISTS audio (
+    article_id INTEGER PRIMARY KEY REFERENCES articles(id),
+    file_path TEXT NOT NULL,
+    duration_seconds REAL,
+    voice TEXT NOT NULL,
+    model TEXT NOT NULL,
+    file_size_bytes INTEGER,
+    generated_at TEXT NOT NULL
+);
 """
 
 
