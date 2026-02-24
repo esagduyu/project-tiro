@@ -20,7 +20,7 @@ Named after [Cicero's freedman](https://en.wikipedia.org/wiki/Marcus_Tullius_Tir
 
 ## Video Walkthrough
 
-[![Watch the 3-minute hackathon submission video here](https://cdn.loom.com/sessions/thumbnails/61ee7ffe076c4b68abeba6dd80423172-with-play.gif)](https://www.loom.com/share/61ee7ffe076c4b68abeba6dd80423172)
+▶ **[Watch the 3-minute hackathon submission video here](https://www.loom.com/share/61ee7ffe076c4b68abeba6dd80423172)**
 
 ---
 
