@@ -1,7 +1,7 @@
 # Project Tiro — Product Roadmap
 
 Review date: 2026-05-25
-Updated: 2026-05-26 (layered in spec Future Roadmap items)
+Updated: 2026-05-26 (strategic decisions: pricing, license, Obsidian sync, X connector)
 Status: Hackathon top-30 (out of ~500); invited to SF. Transitioning from demo to public alpha.
 
 ## How To Use This Document
@@ -384,14 +384,14 @@ This phase comes before desktop packaging (Phase 5) because packaging an app who
 - Feed into Phase 6 preference classifier as a richer signal than the current binary read/unread.
 - Strictly local; never transmitted off-device unless cloud sync is opted in.
 
-**Obsidian-vault compatibility**:
+**Obsidian-vault compatibility** (on-disk format only — bidirectional sync is Phase 2b):
 - New config flag: `obsidian_compatible_mode: bool`. When true:
   - Article frontmatter uses Obsidian-friendly fields (`tags:` as YAML list, `aliases:`, `created:`).
   - Inline `[[wikilinks]]` for related articles (instead of `/articles/{id}` URLs).
   - Notes sidecars use the same naming convention as the article (`notes/{slug}.md`).
   - Optional: point `library_path` at an existing Obsidian vault subdirectory.
 - Does not require Obsidian to be installed; just lays out files so Obsidian opens them cleanly if the user wants.
-- Full bidirectional sync (file watcher detecting external edits) is post-1.0; this phase ships the on-disk format so the option remains open.
+- This phase ships the read-friendly format; **Phase 2b ships the file-watcher and bidirectional reconciliation** that makes Obsidian a co-equal editing surface.
 
 ### Out of scope
 
@@ -426,6 +426,91 @@ This phase comes before desktop packaging (Phase 5) because packaging an app who
 - **DOMPurify (Phase 0) strips some attributes**. If we add `data-highlight-id` attributes to spans, allowlist them.
 - **Hash drift from upstream updates**: if a user re-saves an article and it changed, do we re-anchor highlights from the old version? Decision: no — version the article, keep highlights pinned to the version they were made against, surface a "newer version available" UI.
 - **`Range` reconstruction across DOM types**: highlights spanning element boundaries (e.g. across a `<p>` break) need careful range serialization. Use [rangy](https://github.com/timdown/rangy) or equivalent, vendored.
+
+---
+
+## Phase 2b — Obsidian Bidirectional Sync
+
+**Release target:** `0.4.5 obsidian-beta`
+**Relative complexity:** L
+**Goal:** Make Obsidian a co-equal editing surface for the Tiro library. Edits in either tool reconcile cleanly into the other.
+
+### Why this phase, why now
+
+Phase 2 ships the on-disk format that Obsidian can read. Phase 2b ships the live reconciliation that makes it actually useful: an Obsidian user can highlight in Tiro on their laptop, open the same vault in Obsidian on their tablet to write a longer note in Obsidian's editor, and have Tiro pick up the new note text on next read without losing the highlight anchors.
+
+This is a commitment, not a "maybe" — Obsidian is the closest neighboring product to Tiro, and the user base overlaps heavily. Treating Obsidian as a peer instead of a competitor differentiates Tiro from every other read-it-later app on the market.
+
+Sequencing rationale: this lands immediately after Phase 2 because (a) the on-disk format is fresh in everyone's mind, (b) users who care about highlights are the same users who care about Obsidian, and (c) it predates desktop packaging (Phase 5) so the file-watcher behavior is battle-tested before it ships in a service-managed daemon.
+
+### In scope
+
+**File watcher**:
+- Watch `library_path` for changes using `watchdog` (cross-platform).
+- Trigger debounced reconciliation on file create/modify/delete events.
+- Throttle: skip Tiro-originated writes (mark them in a short-lived "expect this change" set so we don't re-process our own work).
+
+**Reconciliation engine**:
+- On external article-markdown edit: re-parse frontmatter, update SQLite metadata, re-embed if body changed, re-anchor highlights against the new content using Phase 2's anchor reconciliation (text-quote first, position fallback, hash-mismatch surfacing).
+- On external notes-sidecar edit: replace the SQLite-derived index, re-render anywhere the note is shown.
+- On external annotations.jsonl edit: replace annotation set; surface drift warnings if Obsidian-side edits broke the JSONL format (the user might have hand-edited).
+- On external file delete: do not delete the SQLite row immediately. Move article to a "trash" view; surface a "did you mean to delete this in Tiro too?" prompt.
+- On external file create within `articles/`: ingest as a manual article (no URL, no source — treat as a "imported from Obsidian" article with `ingestion_method='external'`).
+
+**Conflict resolution**:
+- Tiro writes use a content hash; if a Tiro write is about to overwrite a file whose hash doesn't match Tiro's last-known hash, treat as conflict.
+- Conflict UI: show both versions, let user pick or merge. Keep losing version as `{slug}.conflict-{ts}.md` so nothing is destroyed.
+- For notes: prefer Obsidian's version as winner when ambiguous (Obsidian's strength is the editor; users will assume their writing wins).
+
+**Vault discovery and pairing**:
+- New setup flow at `/setup/obsidian`: detect existing Obsidian vaults (`~/Documents/`, `~/Obsidian/`, common patterns); offer to set `library_path` to an existing vault, or to a subdirectory of one.
+- Migration tool: convert an existing Tiro library into an Obsidian-compatible layout in place, preserving all data.
+- Reverse migration: convert an Obsidian vault Tiro is managing into a standalone library if the user wants to move out.
+
+**Wiki-link resolution**:
+- Inline `[[Article Title]]` links work in both directions. Tiro renders them as internal links; Obsidian renders them via its native wikilink system.
+- Cross-file references (article → note → article) preserved through both editors.
+
+**Performance**:
+- File watcher does not re-embed on every keystroke. Debounce at 2-3 seconds of file stability.
+- Skip re-embed if only frontmatter changed (no body change).
+- Bulk reconciliation mode: a one-shot "scan and reconcile everything" CLI for libraries that have been edited externally while Tiro was off (`tiro reconcile`).
+
+### Out of scope
+
+- Obsidian plugin (a Tiro-native Obsidian plugin that talks to the running Tiro server). Worth considering post-1.0 but the file-format approach is the more durable interoperability story.
+- Real-time collaborative editing within Obsidian. Tiro is single-user.
+- Migrating Obsidian's own metadata (graph, aliases, canvas, etc.) into Tiro semantics. Obsidian's metadata stays Obsidian's; Tiro only reads its own frontmatter and the markdown body.
+
+### Dependencies
+
+- Phase 2 complete (highlights, notes, sidecar format, Obsidian-vault compatibility mode).
+- Phase 0 sanitization (external markdown edits go through the same sanitization pipeline).
+
+### Acceptance criteria
+
+- An Obsidian user can open Tiro's library as their vault, edit a note from Obsidian, save, switch to Tiro, see the updated note within seconds without restart.
+- Editing the same note in Tiro and Obsidian while one is offline produces a conflict file, not data loss.
+- Hand-deleting an article file in Obsidian moves the article to Tiro's trash view; restoring it from trash recreates the file.
+- Adding a new markdown file to `articles/` outside Tiro causes it to appear in the inbox as an external-source article.
+- Running `tiro reconcile` after a week of Obsidian-only edits brings the SQLite state consistent with the filesystem in a single pass.
+
+### Test plan
+
+- `tests/test_watcher.py` — file events trigger correct reconciliation; Tiro-originated writes don't loop.
+- `tests/test_conflict.py` — concurrent edit scenarios produce conflict files, never silent data loss.
+- `tests/test_external_create.py` — new files appear as external articles.
+- `tests/test_reconcile.py` — bulk reconcile correctness on a synthetic divergent state.
+- Manual: actual Obsidian session, edit in both, verify both sides.
+
+### Risks and gotchas
+
+- **Watcher loops are easy to write and brutal to debug**. Every Tiro write must mark itself in the "expect this change" set *before* the write happens, not after.
+- **Cross-platform file events differ**. macOS aggregates rapid changes; Linux fires per-event; Windows has its own quirks. `watchdog` papers over most but not all. Test on all three.
+- **Obsidian writes atomically by default** (write to temp, rename) — the watcher must handle both create and rename events as "file changed."
+- **Frontmatter drift**: Obsidian users will hand-edit frontmatter in ways Tiro doesn't expect (custom fields, reordered keys, multi-line values). Preserve unknown fields; never strip them on round-trip.
+- **Embeddings re-cost**: re-embedding on every external edit can be expensive. The "frontmatter-only change = skip re-embed" optimization is mandatory, not optional.
+- **Locking on `library_path` shared with active Obsidian editor**: Obsidian holds open file handles. Tiro writes must tolerate transient lock errors and retry.
 
 ---
 
@@ -562,14 +647,7 @@ Both build on Phase 1's import infrastructure.
 - Selection save: if the user has text selected, save the article and pre-create a highlight on that selection.
 - Save-all-tabs button.
 
-**Twitter / X thread connector**:
-- Save a tweet URL → unroll the entire thread into a single coherent article with author attribution, timestamps, embedded image/video references (URLs, not blobs), and reply context.
-- Two implementation paths, both supported:
-  - **Extension-side capture** (preferred for the avoiding-rate-limits reasons): the Chrome extension scrapes the DOM when the user clicks Save on a tweet/thread page, sends the structured JSON to Tiro. Survives X's anti-scraping changes because the user's authenticated session is doing the work.
-  - **Server-side fallback** for public tweets: parse via Nitter mirrors or syndication URLs where available; degrade gracefully when unavailable.
-- Thread → markdown with each tweet as a paragraph, separator lines between authors when threaded with replies, image alt text inline.
-- Source created as `source_type="social"` (new type) with `email_sender`-equivalent being the handle (`@username`).
-- VIP at the author level (uses Phase 1 author-VIP infra).
+> **Twitter / X thread connector** has been deferred to post-1.0 — see Cross-Cutting "Rich Media & Social Connectors." X's anti-scraping environment makes connector maintenance expensive, and the value-per-engineering-week is lower than RSS, Pocket import, or PDFs.
 
 ### Out of scope
 
@@ -1023,15 +1101,16 @@ Land the local logging and AI audit log in Phase 0; extend the audit log per pha
 
 Land MCP-side improvements in Phase 6 (agent runtime). Land handoff UI in Phase 2 (notes) since highlights/notes are the most valuable content for assistant handoff.
 
-### Rich Media Connectors
+### Rich Media & Social Connectors
 
 Deferred past 1.0. Suggested order when picked up:
 
 1. **PDF connector** with OCR fallback and citation extraction.
 2. **YouTube transcript** connector with timestamped sections.
 3. **Podcast transcription** connector.
+4. **Twitter / X thread connector** — extension-side DOM capture preferred over server-side scraping (X actively breaks scrapers). Thread unrolling, author attribution, media URL references. Defer until the agent runtime and plugin system are stable — this should probably ship as a community-maintained ingestion plugin (Phase 6 plugin API) rather than a first-party connector, given the maintenance burden.
 
-These are high-value but each is a multi-week project with significant ongoing maintenance (API drift, transcription cost, media-specific UX). The product loop is stronger with notes + RSS + sync than with five more connectors.
+These are high-value but each is a multi-week project with significant ongoing maintenance (API drift, transcription cost, media-specific UX, anti-scraping cat-and-mouse for X). The product loop is stronger with notes + RSS + sync than with five more connectors.
 
 ### Documentation Maintenance
 
@@ -1058,20 +1137,33 @@ The following are non-goals through Phase 7b. Some are permanent ("never"); othe
 - **Team / multi-user accounts.** Single-user is the design center through Phase 7b. Team libraries are a possible 1.x track conditional on personal sync being excellent and on demand actually existing among reached users.
 - **Cross-user discovery / recommendation.** Same trigger as social posture. If Tiro ever exposes "what other users with similar libraries are saving," it should be opt-in, anonymized, and live entirely in the Cloud tier (BYO sync users opt out by virtue of not having a Tiro-operated server seeing their data).
 
+## Decisions Made
+
+Strategic decisions that were Open Questions in earlier roadmap revisions but have been resolved. Captured here so planning agents have the rationale, not just the conclusion.
+
+1. **Pricing model: single tier.** Tiro Cloud launches as a single "Tiro Supporter" subscription — flat monthly with an annual discount. No storage tiers, no AI tiers, no per-feature gating. Rationale: the model is "support the open product," and tiering would muddy that message. Add tiers only if usage patterns force the issue post-launch (e.g., a small minority of users consuming an order of magnitude more AI than the rest).
+
+2. **License: AGPL across the project.** Tiro moves from MIT to AGPL-3.0. Rationale: AGPL doesn't affect end-users running Tiro on their own laptop/server (they aren't redistributing a service), but it does discourage hosted clones from competing with Tiro Cloud without contributing back. The local-first user base is unaffected; the paid Cloud business is protected. Existing contributions remain MIT-licensed at their commit point; future contributions are AGPL. The license change applies to Tiro Local, Phase 7a (BYO sync), and Phase 7b (Tiro Cloud server) uniformly — keeping the licensing story simple. Action item for Phase 0 (or earlier): contributor sign-off / relicensing tracking, LICENSE file update, README update, package metadata update.
+
+3. **Obsidian bidirectional sync: shipping in Phase 2b.** Promoted from "open question" to a committed phase. See Phase 2b above. Rationale: Obsidian is the closest neighboring product, the user bases overlap, and treating Obsidian as a peer is a defensible differentiator that nobody else in the read-it-later space offers.
+
+4. **Twitter / X connector: deferred past 1.0.** Moved out of Phase 4 into the post-1.0 Rich Media & Social Connectors track, likely shipped as a community ingestion plugin rather than first-party code. Rationale: X's anti-scraping environment makes maintenance expensive, the user value-per-engineering-week is lower than RSS or Pocket import, and the plugin API (Phase 6) is a more sustainable home for fragile connectors.
+
+5. **Cloud architecture: BYO-first, hosted-second.** Phase 7a (BYO sync) ships before Phase 7b (Tiro Cloud). The free version of multi-device sync exists before the paid hosted version. Tiro Cloud is convenience, never a feature gate.
+
+6. **Social posture: deferred with explicit trigger.** Single-user only through Phase 7b. Revisit when **≥10k MAU OR ≥100 distinct user requests for cross-user sharing**, whichever comes first. Phase 7b's architecture (per-user encrypted blobs) keeps the future open without committing to it.
+
 ## Open Strategic Questions
 
-These need product decisions before the relevant phase begins. Listed here so they don't get lost.
+These remain unresolved and need product decisions before the relevant phase begins.
 
-1. **Pricing for Tiro Cloud (single tier vs multi-tier).** The model is set: "Tiro Supporter" pattern, hosted sync + hosted agent runtime + managed AI baseline, BYO-key override always available. Open: single price point, or annual discount only, or storage/AI tiers? Recommendation: start with a single tier — "Tiro Supporter, $X/mo with $X-2/mo annual" — and only add tiers when usage patterns demand it.
-2. **Release-hosting decision.** GitHub Releases is the obvious default for Phase 5, but auto-update at scale eventually wants a CDN. Decide before Phase 5 ships.
-3. **Tiro Cloud backend infrastructure choice.** For Phase 7b: own VPS infra vs. managed serverless (Fly.io, Railway) vs. managed K8s vs. fully serverless (Cloudflare Workers + R2). Each has different cost/lock-in/encryption-handling profiles. Phase 7a is unaffected — BYO sync works against any S3-compatible.
-4. **Mobile native app trigger.** PWA is the plan through Phase 7b; the threshold for committing to native iOS/Android is unclear. Likely trigger: "when users ask for features the PWA cannot deliver" — reliable background audio, lock-screen audio controls, push notifications, widgets, share-sheet integration.
-5. **License strategy.** Tiro Local + Phase 7a (BYO sync) stay MIT — they are the open product. Phase 7b (Tiro Cloud server) may want AGPL or a dual-license to discourage hosted-clone competitors. Decide before Phase 7b code is published.
-6. **MCP-vs-native-tool calling** as the canonical tool surface for the agent runtime. MCP is more portable; native is lower-latency. Phase 6 should standardize on one and clearly support the other.
-7. **Plugin sandboxing approach.** Process isolation? WASM? Trust-the-user-with-warnings? Phase 6 ships without a sandbox; the answer to this question determines when sandboxing becomes mandatory.
-8. **Social posture revisit trigger.** Concrete numbers for "at scale": ≥10k MAU? Repeated explicit demand pattern in support? An external acquisition rationale? Worth setting an actual number now so we don't argue about it later. Recommendation: 10k MAU **or** 100 distinct user requests for cross-user sharing, whichever comes first.
-9. **Obsidian compatibility ceiling.** Phase 2 ships read-friendly file layout for Obsidian users. Open: do we ever ship bidirectional sync (file-watcher reconciling external edits)? This is its own engineering project — defer the decision until users are actually living with the Obsidian-vault-mode default.
-10. **Twitter / X connector resilience.** X actively breaks scrapers. Extension-side capture is the durable path (Phase 4). Open: do we maintain a server-side Nitter fallback, or accept that public-tweet save will sometimes break? Recommendation: ship extension-only, document the limitation, add Nitter fallback only if user demand justifies the maintenance.
+1. **Release-hosting decision.** GitHub Releases is the obvious default for Phase 5, but auto-update at scale eventually wants a CDN. Decide before Phase 5 ships.
+2. **Tiro Cloud backend infrastructure choice.** For Phase 7b: own VPS infra vs. managed serverless (Fly.io, Railway) vs. managed K8s vs. fully serverless (Cloudflare Workers + R2). Each has different cost/lock-in/encryption-handling profiles. Phase 7a is unaffected — BYO sync works against any S3-compatible.
+3. **Mobile native app trigger.** PWA is the plan through Phase 7b; the threshold for committing to native iOS/Android is unclear. Likely trigger: "when users ask for features the PWA cannot deliver" — reliable background audio, lock-screen audio controls, push notifications, widgets, share-sheet integration.
+4. **MCP-vs-native-tool calling** as the canonical tool surface for the agent runtime. MCP is more portable; native is lower-latency. Phase 6 should standardize on one and clearly support the other.
+5. **Plugin sandboxing approach.** Process isolation? WASM? Trust-the-user-with-warnings? Phase 6 ships without a sandbox; the answer to this question determines when sandboxing becomes mandatory.
+6. **Pricing point ($X/mo).** The model is decided (single tier); the actual number is not. Calibrate against Obsidian Sync (~$8/mo), Readwise Reader (~$8/mo), and the cost of the bundled AI quota. Recommendation: pick after Phase 6 lands so the actual hosted-AI cost is known, not estimated.
+7. **AGPL compatibility for dependencies.** Some existing dependencies may have license terms that interact awkwardly with AGPL. Pre-Phase-0 audit: list every dependency, confirm compatibility, find replacements for any that conflict.
 
 ---
 
