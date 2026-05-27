@@ -1,7 +1,7 @@
 # Project Tiro — Product Roadmap
 
 Review date: 2026-05-25
-Updated: 2026-05-25 (post-strategy review)
+Updated: 2026-05-26 (layered in spec Future Roadmap items)
 Status: Hackathon top-30 (out of ~500); invited to SF. Transitioning from demo to public alpha.
 
 ## How To Use This Document
@@ -34,13 +34,14 @@ The roadmap below is a path from "impressive demo" to "Obsidian-style local-firs
 
 ## Product Strategy
 
-Tiro is positioned as a personal reading OS with three deploy modes:
+Tiro is positioned as a personal reading OS with four deploy modes:
 
 1. **Tiro Local** — free, open-source, fully local. Users run it on their laptop or home server. They bring their own API keys or use local models.
-2. **Tiro Private Remote** — still self-hosted, but easy to reach from phone/tablet through Tailscale or another private network. This is the bridge between local-first and daily use.
-3. **Tiro Cloud** — paid hosted sync, backups, sharing, and managed AI baseline. The business value is convenience and reliability, not locking up the user's data.
+2. **Tiro Private Remote** — still self-hosted, but easy to reach from phone/tablet through Tailscale or another private network. The bridge between local-first and daily use.
+3. **Tiro Local + BYO Cloud Sync** — free and open. Users sync their library to a storage backend they own (S3, Backblaze B2, Dropbox, iCloud Drive, Google Drive, a self-hosted MinIO). Tiro never touches the data; the user's storage account is the source of truth across devices.
+4. **Tiro Cloud (paid)** — hosted sync, hosted agent runtime, managed AI baseline. Patterned on Obsidian Sync: it is a convenience subscription that funds the open product, not a gate to features. Everything Tiro Cloud does, the user can do themselves with BYO sync + their own API keys.
 
-The product promise: original source files remain clean and portable; user-created memory (highlights, notes, ratings, digests, AI outputs) lives in adjacent local files and transparent databases; anything paid makes the system easier to run across devices, not worse to own locally.
+The product promise: original source files remain clean and portable; user-created memory (highlights, notes, ratings, digests, AI outputs) lives in adjacent local files and transparent databases; anything paid makes the system easier to run across devices, not worse to own locally. **A user who never pays Tiro a cent should be able to use every feature.**
 
 ## Product Principles
 
@@ -263,6 +264,19 @@ This phase also closes the export story (notes/highlights are not in it yet — 
 - `PATCH /api/sources/{id}` body `{name, domain, email_sender, source_type}` — rename and edit. UI in Settings or a new `/sources` page.
 - Author normalization: detect close matches across sources (same `email_sender` with different display names) and offer merge.
 
+**Author-level VIP**:
+- Extend VIP from source-only to author-aware. The `articles.author` field already exists (extracted from `<meta name="author">`); promote authors to first-class.
+- New table `authors`: `id, name, canonical_name, is_vip, notes`. Junction `article_authors` for the N:M (some articles have multiple authors).
+- Backfill from existing `articles.author` text; manual merge UI in `/sources` page tab for "Authors."
+- VIP authors flagged independently from source VIP. A user can VIP "Matt Levine" without VIPing all of Bloomberg.
+- Digest and decay weights factor in author VIP alongside source VIP.
+
+**Saved inbox views**:
+- The filter panel (Checkpoint 22) supports 11 facets. Add "Save current view as…" with a name; saved views appear in the sidebar under a "Views" section.
+- New table `saved_views`: `id, name, filter_json, sort_mode, created_at, position`.
+- Drag-to-reorder in the sidebar. Right-click to rename/delete.
+- Examples a user would save: "Unread tech this week," "Loved AI articles," "VIP newsletters today," "Substack only, unread."
+
 **Backup snapshots**:
 - New CLI: `tiro backup --output ~/tiro-backups/{date}.tar.zst` — full library snapshot (markdown + SQLite + ChromaDB + config minus secrets + audio metadata, optionally including audio MP3s with `--include-audio`).
 - New CLI: `tiro restore <snapshot>` — replaces current library after confirmation. Existing library moved to `tiro-library.bak.{ts}`.
@@ -360,6 +374,25 @@ This phase comes before desktop packaging (Phase 5) because packaging an app who
 **MCP exposure**:
 - New tool `get_highlights` in `tiro/mcp/server.py` — agents can read user highlights as context.
 
+**Scroll depth and reading-session instrumentation**:
+- The reader already calls `mark_read` on load. Extend with fine-grained engagement signal:
+  - `max_scroll_depth_pct` (0–100) — captured throughout the session.
+  - `active_seconds` — accumulated only while the tab is visible and the user is interacting.
+  - `dwell_per_section` — JSON array of `{heading, seconds}` keyed off article H2/H3 anchors.
+- New table `reading_sessions`: `id, article_id, started_at, ended_at, max_scroll_pct, active_seconds, dwell_json`. One row per reading session, multiple per article.
+- Sent from the reader as a single `PATCH /api/articles/{id}/session` on `visibilitychange→hidden` or `beforeunload`; debounced to avoid network churn.
+- Feed into Phase 6 preference classifier as a richer signal than the current binary read/unread.
+- Strictly local; never transmitted off-device unless cloud sync is opted in.
+
+**Obsidian-vault compatibility**:
+- New config flag: `obsidian_compatible_mode: bool`. When true:
+  - Article frontmatter uses Obsidian-friendly fields (`tags:` as YAML list, `aliases:`, `created:`).
+  - Inline `[[wikilinks]]` for related articles (instead of `/articles/{id}` URLs).
+  - Notes sidecars use the same naming convention as the article (`notes/{slug}.md`).
+  - Optional: point `library_path` at an existing Obsidian vault subdirectory.
+- Does not require Obsidian to be installed; just lays out files so Obsidian opens them cleanly if the user wants.
+- Full bidirectional sync (file watcher detecting external edits) is post-1.0; this phase ships the on-disk format so the option remains open.
+
 ### Out of scope
 
 - Spaced repetition / flashcards (post-1.0 unless explicit user demand).
@@ -441,6 +474,13 @@ This is a Medium-complexity phase, not Large: most of it is a setup wizard plus 
 - For LAN-only setups, document mkcert and provide a `tiro run --cert <path> --key <path>` option.
 - Do not generate self-signed certs automatically (UX nightmare).
 
+**mDNS / Bonjour discovery** (for LAN-only users who don't want Tailscale):
+- Use `python-zeroconf` to advertise `tiro.local` (or a user-configurable hostname) on the LAN at startup.
+- Phones on the same Wi-Fi find Tiro by name; no IP memorization, no DNS setup.
+- Works out of the box on iOS/macOS; Android requires the user to install a Bonjour browser app or use the IP fallback (documented).
+- Settings page shows the active `.local` hostname plus a QR code encoding the URL.
+- Disabled by default in cloud/container environments where mDNS is noisy or unwanted; opt-in via `mdns_enabled: bool`.
+
 ### Out of scope
 
 - Public sharing (Tailscale Funnel) — document as advanced, do not build wizard.
@@ -521,6 +561,15 @@ Both build on Phase 1's import infrastructure.
 - Chrome extension: right-click context menu for "Save to Tiro" with submenus (Save, Save as VIP, Save with selection-as-highlight).
 - Selection save: if the user has text selected, save the article and pre-create a highlight on that selection.
 - Save-all-tabs button.
+
+**Twitter / X thread connector**:
+- Save a tweet URL → unroll the entire thread into a single coherent article with author attribution, timestamps, embedded image/video references (URLs, not blobs), and reply context.
+- Two implementation paths, both supported:
+  - **Extension-side capture** (preferred for the avoiding-rate-limits reasons): the Chrome extension scrapes the DOM when the user clicks Save on a tweet/thread page, sends the structured JSON to Tiro. Survives X's anti-scraping changes because the user's authenticated session is doing the work.
+  - **Server-side fallback** for public tweets: parse via Nitter mirrors or syndication URLs where available; degrade gracefully when unavailable.
+- Thread → markdown with each tweet as a paragraph, separator lines between authors when threaded with replies, image alt text inline.
+- Source created as `source_type="social"` (new type) with `email_sender`-equivalent being the handle (`@username`).
+- VIP at the author level (uses Phase 1 author-VIP infra).
 
 ### Out of scope
 
@@ -608,6 +657,18 @@ This phase deliberately follows highlights and RSS because both are daily-return
 - Desktop installer per platform from a GitHub Releases page.
 - Homebrew tap (`brew install tiro`) as a fast follow.
 
+**Docker packaging** (for home-server / NAS / self-hoster users):
+- Official `ghcr.io/esagduyu/tiro` image, multi-arch (`linux/amd64`, `linux/arm64` for Raspberry Pi and Apple Silicon servers).
+- `docker-compose.yml` template under `deploy/docker/` with:
+  - The Tiro service.
+  - Persistent volume for the library directory.
+  - Optional sidecar for a local model server (Ollama).
+  - Optional sidecar for a self-hosted MinIO if the user wants BYO sync stored next to Tiro.
+- Container env vars mirror config.yaml keys (`TIRO_LIBRARY_PATH`, `TIRO_ANTHROPIC_API_KEY`, etc.) for the docker-native config flow.
+- First-run inside the container skips the interactive `tiro init` and reads from env.
+- Auto-update via the same release manifest the desktop installer uses; `watchtower`-friendly tags.
+- Documented as the recommended path for users running Tiro on a Synology, Unraid, or always-on Linux box.
+
 **Migration framework**:
 - `tiro/migrations/` directory with versioned SQL/Python migration files.
 - `tiro migrate` CLI; auto-runs on server start with confirmation if schema version differs.
@@ -685,8 +746,12 @@ Crucially, this phase is *sixth*, not earlier, because the right abstractions fo
 
 **New agents**:
 - `HighlightSummarizer` — weekly digest of recent highlights with thematic grouping.
-- `ContradictionDetector` — flags articles whose claims contradict each other.
-- `ReadingCoach` — surfaces reading habit insights weekly.
+- `ContradictionDetector` — flags articles whose claims contradict each other. Triggers proactively on ingest when a new article contradicts a previously highly-rated one (notification, not just digest item).
+- `ReadingCoach` — surfaces reading habit insights weekly. Uses the scroll-depth/dwell data from Phase 2.
+- `ArgumentMapper` — for opinion and analysis articles, extracts logical structure (premises → evidence → conclusions → unstated assumptions). Renders as an interactive map (reuse the d3 infra from the knowledge graph).
+- `TemporalAnalyst` — tracks how coverage of a topic evolves over time across the user's sources. Output is a timeline with stance/framing annotations. Triggered ad-hoc ("how has coverage of X shifted?") and as a monthly digest section.
+- `SourceAuthorityScorer` — builds a PageRank-style authority graph from hyperlinks preserved within saved articles. Sources frequently cited by other saved articles gain authority. Surfaces in the knowledge graph as "foundational sources" and feeds into digest ranking as a tiebreaker.
+- `MultiModelAnalyst` — runs the same analysis prompt through multiple models (Opus, Sonnet, GPT-4, Gemini, local) and surfaces disagreement. Useful both for reducing AI-layer bias and as a power-user feature.
 
 **Provider adapters**:
 - `AnthropicProvider` (Opus + Haiku).
@@ -704,10 +769,13 @@ Crucially, this phase is *sixth*, not earlier, because the right abstractions fo
 - `tiro evals run [agent]` runs all fixtures, reports pass/fail vs. expected outputs.
 - Required for prompt changes: CI gate (manual at first, automated when Phase 5 CI lands).
 
-**Plugin API**:
-- Third-party agents installable via `pip install tiro-agent-foo` or dropped into `~/.tiro/plugins/`.
-- Plugins declare a manifest (name, version, capabilities, required tools, required API permissions).
-- User confirms install; plugins run in the same process with no sandbox initially (sandbox is post-1.0).
+**Plugin API** (broader than agents — covers all three plugin types from the spec vision):
+- **Agent plugins** — third-party agents installable via `pip install tiro-agent-foo` or dropped into `~/.tiro/plugins/agents/`. Manifest declares name, version, required tools, API permissions, model preferences.
+- **Ingestion plugins** — custom connectors (e.g., a community-maintained Mastodon connector, a custom corporate Confluence connector). Manifest declares URL patterns matched, MIME types, and the extract function. Drop into `~/.tiro/plugins/ingestion/`. Hooked into `process_article()` before the default web/email pipeline.
+- **Theme plugins** — community themes as `.css` files dropped into `~/.tiro/plugins/themes/`. Show up in the Settings appearance picker alongside `papyrus` and `roman-night`. Theme manifest optional (just CSS works); manifest adds an icon and display name.
+- All plugin types use the same manifest schema (`plugin.toml`) with a `type:` discriminator.
+- User confirms install; plugins run in the same process with no sandbox initially (sandbox is post-1.0). Plugins requiring network or file-system access prompt for permission.
+- `tiro plugin install <path-or-pypi-name>`, `tiro plugin list`, `tiro plugin remove <name>` CLI.
 
 ### Out of scope
 
@@ -743,79 +811,180 @@ Crucially, this phase is *sixth*, not earlier, because the right abstractions fo
 
 ---
 
-## Phase 7 — Tiro Cloud
+## Phase 7a — BYO Cloud Sync (free, open)
 
-**Release target:** `1.0 cloud-beta`
-**Relative complexity:** XL
-**Goal:** Paid hosted product that adds convenience without compromising local-first ownership.
+**Release target:** `0.9 sync-beta`
+**Relative complexity:** L
+**Goal:** Multi-device sync where the user owns the storage. Tiro never holds the data.
 
 ### Why this phase, why now
 
-Local installs work, packaging is solid, the user base exists. Cloud is the monetization track that funds continued development without compromising the local-first promise (users can keep using Tiro Local forever).
+The local-first promise is strongest when "syncing across my devices" doesn't require trusting a Tiro-operated server. BYO sync ships **before** the paid hosted product on purpose: it's the version that matches the philosophy. Tiro Cloud (Phase 7b) is the convenience layer that funds the open work; it must never become the only way to use Tiro across devices.
+
+The model is borrowed from Obsidian: the file-and-DB layout is sync-friendly by construction, and any commodity storage backend can hold it.
 
 ### In scope
 
-**Hosted encrypted sync**:
-- Client-side encryption: user holds the key. Server stores ciphertext. Recovery requires the key (with appropriate UX warnings).
-- Sync surface: articles, notes, highlights, ratings, VIP, digests, stats history, settings (excluding API keys, which stay local).
-- Conflict resolution: last-write-wins per-field for metadata; CRDT for notes; "both versions kept" UI for actual user-edited content.
-- Sync transport: HTTPS + signed requests; provider TBD (operator-grade S3-compatible storage is the simplest backend).
+**Sync engine**:
+- A storage-backend-agnostic sync layer in `tiro/sync/`.
+- One source-of-truth concept: the library directory plus its sidecars (articles markdown, notes, annotations JSONL, an exported snapshot of SQLite-derived state).
+- ChromaDB is **not** synced; vectors regenerate locally from synced articles on first run on a new device. This avoids ChromaDB version-lock and keeps embeddings as a derived cache.
+- SQLite mutable state synced as a periodic full snapshot + a journal of recent ops between snapshots (CRDT-style for notes, last-write-wins for metadata).
+- Conflict resolution per field type:
+  - Notes / highlights (user text): CRDT (Yjs or Automerge), "both versions kept" UI in the rare manual case.
+  - Ratings, VIP flags, read status: last-write-wins.
+  - AI outputs (digests, analyses): re-generatable, prefer the newer version.
+
+**Storage backend adapters**:
+- `S3Adapter` — works with AWS S3, Cloudflare R2, Backblaze B2, MinIO, any S3-compatible. User provides endpoint + access key.
+- `WebDAVAdapter` — works with Nextcloud, Fastmail Files, generic WebDAV.
+- `FilesystemAdapter` — for users who already sync a folder via Dropbox/iCloud/Google Drive/Syncthing. Just point Tiro at the synced folder; Tiro doesn't talk to those services directly. Coordination via lock files.
+- Adapter contract is small (`put`, `get`, `list`, `delete`, `lock`, `unlock`) so the community can add more.
+
+**Encryption**:
+- Optional client-side encryption (default on for S3/WebDAV, off for Filesystem since those vendors handle TLS at rest).
+- Key derived from a user passphrase (Argon2id). Passphrase entered on each device pair.
+- Encrypted blobs use age (`age` format) — auditable, simple, well-reviewed.
 
 **Device pairing**:
-- Add device via QR code or short-lived pairing token.
-- Per-device sync status, last-sync timestamp.
-- Revoke device.
+- Pair a new device by entering: storage backend creds + passphrase. That's it.
+- Or scan a QR code from an already-paired device that bundles (storage backend URL, masked creds the new device decrypts via a one-time pairing key, passphrase entry still required).
+- Per-device last-sync timestamp visible in Settings → Sync.
 
-**Hosted web/mobile access**:
-- For users who don't run Tiro Local at all: a hosted FastAPI instance serves the same UI against the user's cloud library.
-- Read-only by default with optional write access (opt-in, requires key on device).
-
-**Managed AI baseline**:
-- Bundled monthly quota of Claude/OpenAI calls.
-- BYO-key override always available; usage that exceeds quota falls back to BYO key.
-- Cost transparency dashboard.
-
-**Backups, restore points, version history**:
-- Server-side immutable backups; client-side `tiro backup` continues to work locally.
-- Version history for individual articles and notes (resurrect old versions).
-
-**Shared collections**:
-- Read-only share links (encrypted URL fragment as key — server can't decrypt).
-- Recipient can subscribe to ongoing updates.
-- No public/social discovery — private sharing only.
+**Sync UX**:
+- `/settings/sync` configures the backend, runs the first sync, shows progress.
+- Status indicator in the sidebar (last sync time, sync errors).
+- Manual "Sync now" button + keyboard shortcut.
+- Background sync interval configurable (default 5 min).
+- Pause sync, force-resync, repair (delete cloud snapshot and re-upload from local).
 
 ### Out of scope (this phase)
 
-- Team/library workspaces — explicitly deferred until personal sync is excellent.
-- Comments on shared collections.
-- Public profiles.
+- Hosted-by-Tiro sync (that's Phase 7b).
+- Hosted agent runtime (Phase 7b).
+- Sharing — handled in Phase 7b with the hosted infrastructure.
+- Multi-user / team libraries (post-1.0, conditional).
 
 ### Dependencies
 
-- All earlier phases.
-- A backend infrastructure decision (own hosting vs managed serverless).
-- Legal/compliance work for handling user data at rest (terms, privacy policy, GDPR, payment processing).
+- All earlier phases. Phase 1 backup snapshots are the foundation of the snapshot format used here.
 
 ### Acceptance criteria
 
-- Two devices, one user: changes sync within seconds, with conflict-free behavior for the simple cases and clear UI for the hard cases.
-- Disconnecting from cloud preserves all local functionality.
-- Encrypted backups verified: drop the user's key, confirm server-side data is unreadable.
-- Billing/quota tracking is accurate to within $0.10/month.
+- Two laptops + one phone, one user, BYO S3 bucket: edit on any device, see changes on the others within one sync interval, no data loss across realistic conflict scenarios.
+- Wiping a device and re-pairing with passphrase and bucket creds restores the full library.
+- Encrypted bucket contents are unreadable to anyone with bucket access but not the passphrase.
+- ChromaDB regenerates correctly on first sync on a new device.
+- Filesystem adapter survives the common "edit on two offline devices, both come online" Dropbox-style scenario without corruption.
 
 ### Test plan
 
-- Multi-device sync integration tests (two TestClient instances against a mock sync backend).
-- Property-based tests for CRDT merge.
-- Pen test of the sync API.
-- Manual end-to-end: pair two devices, edit on both, verify convergence.
+- Property-based tests for the CRDT merge across realistic edit sequences.
+- Adapter conformance tests run against MinIO (S3), a Nextcloud Docker (WebDAV), and a local temp dir (Filesystem) in CI.
+- Multi-device integration tests using multiple `TestClient` instances pointed at a shared MinIO.
+- Encryption round-trip test: encrypt locally, fetch as raw bytes, attempt decrypt with wrong passphrase, attempt with right one.
+- "Recover from corrupted snapshot" drill.
 
 ### Risks and gotchas
 
-- **Encryption-at-rest UX is brutal**. Lose the key, lose the data — communicate this relentlessly.
-- **CRDTs for notes** are well-understood (Yjs, Automerge); CRDTs for AI outputs and stats are less so. Default to last-write-wins where conflict is rare.
-- **AI quota cost forecasting** is the operational risk — overage exposure has bankrupted infra startups.
-- **Compliance scope expands** the moment you store paying users' data. Budget for legal.
+- **CRDT scope creep**: only notes need a real CRDT. Apply last-write-wins everywhere else aggressively; otherwise this phase becomes 2x bigger.
+- **Filesystem adapter and Dropbox/iCloud are tricky**: those services aren't real filesystems — they do lazy sync, conflict files, partial writes. Document this clearly; recommend S3-compatible backends as the better path for active multi-device users.
+- **Passphrase loss is unrecoverable** (no key escrow, by design). The UX must be relentless: print recovery codes on setup, prompt for backup, warn before every destructive sync op.
+- **ChromaDB regeneration is slow** on a large library (re-embedding all articles). Show progress; do it in the background; let the UI work against SQLite while embeddings rebuild.
+- **Schema migrations across devices**: a device on v0.9 and a device on v1.0 sharing a bucket. Define a sync-format version separate from the app version; refuse to sync if format-version mismatch; surface upgrade prompt.
+
+---
+
+## Phase 7b — Tiro Cloud (paid, hosted)
+
+**Release target:** `1.0 cloud-beta`
+**Relative complexity:** XL
+**Goal:** Hosted convenience subscription that funds the open product. Patterned on Obsidian Sync: nothing here is unavailable to free users running BYO sync.
+
+### Why this phase, why now
+
+BYO sync (7a) is the philosophical default. Tiro Cloud is the "I'd rather pay $X/mo than manage a bucket and an Anthropic key" option. It also offers a place to run agents continuously without keeping a laptop awake — which is the practical wedge for users with home/work computers that aren't always on.
+
+The pricing model is "Tiro Supporter" — explicitly framed as supporting the open product, not unlocking features. Everything the cloud does, the local + BYO user can do for themselves.
+
+### In scope
+
+**Hosted sync**:
+- Tiro-operated S3-compatible storage with client-side encryption preserved (same age-encrypted blobs as 7a; Tiro never sees plaintext).
+- A managed sync endpoint over HTTPS so users don't manage storage credentials.
+- Same conflict resolution as 7a (the engine is shared).
+- Bandwidth and storage tiers; default tier sized for a typical reading library.
+
+**Hosted agent runtime**:
+- Tiro Cloud runs the Phase 6 agent runtime on a server that's always on. Subscribers' scheduled digests, IMAP polling, RSS fetching, and proactive contradiction alerts continue when their laptop is closed.
+- Same agent code as local; no feature divergence.
+- Per-user resource limits so a runaway agent can't take down the service.
+
+**Managed AI baseline**:
+- Included monthly quota of Claude/OpenAI calls (calibrated to the average reader's needs).
+- BYO-key override always available and free (a subscriber who hits quota can flip to their own key without losing the subscription benefits of hosted sync + hosted runtime).
+- Cost transparency dashboard: tokens used, dollars consumed, projection.
+- No silent throttling; overage requires explicit user opt-in to spend.
+
+**Hosted web/mobile access**:
+- For users who don't run Tiro Local at all: a hosted FastAPI instance serves the same UI against the user's encrypted cloud library. Decryption happens client-side in the browser via the user's passphrase.
+- This is the "I just want to read on my phone, I don't want to run a server" tier.
+
+**Backups, restore points, version history**:
+- Server-side immutable backups (separate from the user-controllable backups in Phase 1).
+- Version history for individual articles and notes — restore prior versions through a timeline UI.
+- Time-limited retention (e.g. 30 days) on free trial; longer on the paid plan.
+
+**Read-only share links** (the narrow, defensible version of sharing):
+- Generate a share URL for a single article + its notes/highlights, or for a saved-view's article list.
+- The URL fragment contains a decryption key; the server can't read the shared content.
+- Recipient can read in a browser. Subscribing to ongoing updates requires the recipient to be a Tiro user.
+- Export-as-newsletter for digests: render a digest as a static, sharable HTML page (no decryption needed; user opted to make this one digest public).
+- This is the "Reading is your own, but I can show you something specific" posture — see Out of Scope below for what's deferred.
+
+**Billing & ops**:
+- Stripe (or equivalent) subscription handling.
+- Single tier at launch ("Tiro Supporter, $X/mo"); annual discount.
+- Clear cancel-anytime; data export on cancel keeps the user whole.
+- Status page; alerting; on-call rotation considerations.
+
+### Out of scope (this phase)
+
+- Team / library workspaces (deferred to a possible 1.x; see "Social posture" note in Out-Of-Scope below).
+- Public reading lists, follow graphs, social discovery (deferred-but-not-killed; see "Social posture").
+- Comments on shared content.
+
+### Dependencies
+
+- Phase 6 agent runtime (hosted runtime is a deploy of it).
+- Phase 7a sync engine (hosted sync is the same engine pointed at Tiro-operated buckets).
+- Infrastructure decisions (hosting provider, payment processor, legal entity).
+- Compliance work for handling user data at rest (terms, privacy policy, GDPR, payment processing).
+
+### Acceptance criteria
+
+- A user on the Cloud tier can pair their devices to Tiro Cloud, have scheduled digests run server-side overnight, and read them on their phone in the morning without ever opening a laptop.
+- A user can cancel, export everything, and resume on BYO sync with no data loss.
+- Server-side bucket inspection confirms only ciphertext blobs are present (no plaintext anywhere except in transit, end-to-end encrypted).
+- AI quota tracking is accurate within $0.10/month; overage requires explicit opt-in.
+- Share link with passphrase fragment opens in a browser and renders the article correctly; without fragment it fails closed.
+
+### Test plan
+
+- Multi-device sync tests reused from Phase 7a, run against the hosted backend.
+- Pen test of the sync, agent, and billing APIs.
+- Load tests for the hosted agent runtime (N concurrent users, scheduled digests at the same minute).
+- Property-based tests for billing/quota accounting.
+- Cancellation drill: subscribe, populate, cancel, export, re-import on BYO. Diff for parity.
+
+### Risks and gotchas
+
+- **AI quota cost forecasting** is the operational risk that has bankrupted infra startups. Quota must be enforced, not estimated. Overage strictly opt-in.
+- **Hosted agent runtime is N times more expensive than client-side** because it runs continuously. The pricing model must account for both AI spend and compute spend.
+- **Encryption-at-rest UX**: lose passphrase, lose data. Recovery codes mandatory; communicate relentlessly.
+- **Compliance scope expands** the moment you store paying users' data and process payments. Budget for legal counsel before launch, not after.
+- **Don't gate features behind cloud**. Every time a feature is added, ask: does this work for the local user? If no, reconsider.
+- **Encrypted-at-rest for the local SQLite/ChromaDB** is a separate request (privacy-conscious users on shared machines). Worth shipping alongside this phase as a `tiro encrypt-library` opt-in that wraps the library directory with age. Documented as a Local feature, not a Cloud feature.
 
 ---
 
@@ -830,7 +999,14 @@ These run alongside the phased work; each is small enough to absorb into the rel
 - **Health endpoint** `/healthz` returning version, uptime, store sizes, background task status.
 - **`tiro status`** CLI summarizing the same.
 
-Land the local logging in Phase 0; add opt-in telemetry in Phase 5 (when there are many install-base users to debug for).
+**External API audit log** (the privacy-transparency feature):
+- Every call to a non-local service logged to `<library>/audit/{date}.jsonl`: timestamp, service (`anthropic`, `openai`, `imap.gmail.com`, `smtp.gmail.com`, `s3.amazonaws.com`, etc.), endpoint, byte counts in/out, token counts where applicable, dollar estimate, request_id, success/failure.
+- `tiro audit` CLI: filter by service/date/cost. `tiro audit --month` summarizes monthly outbound traffic and AI spend.
+- `/audit` web view: same data with charts.
+- This is a **trust feature**: the user can answer "what has Tiro sent to whom?" at any moment.
+- Foundation laid in Phase 0 (the Anthropic/OpenAI calls during ingestion and digest). Extended in every phase that adds an external dependency (IMAP/SMTP in Phase 0 already; sync backends in Phase 7a; hosted services in Phase 7b).
+
+Land the local logging and AI audit log in Phase 0; extend the audit log per phase as new external services are added; add opt-in crash reporting in Phase 5 (when there are many install-base users to debug for).
 
 ### AI Eval Harness
 
@@ -868,27 +1044,34 @@ These are high-value but each is a multi-week project with significant ongoing m
 
 ## Out-Of-Scope For This Roadmap
 
-The following are explicit non-goals, called out so planning agents don't drift into them:
+The following are non-goals through Phase 7b. Some are permanent ("never"); others are **deferred-but-not-killed** with explicit revisit triggers. Planning agents should not drift into them; product strategy may revisit per the trigger.
 
-- **Team / multi-user accounts.** Single-user remains the design center until at minimum Phase 7.
-- **Social / public sharing.** Private remote and private collection sharing only. No public profiles, comments, follow graphs.
-- **Automating consumer chat subscriptions.** Tiro does not drive Claude Pro / ChatGPT Plus / Gemini Advanced web UIs.
-- **Generic note-taking app.** Notes serve articles; they are not a Notion replacement.
+**Permanent non-goals:**
+- **Automating consumer chat subscriptions.** Tiro does not drive Claude Pro / ChatGPT Plus / Gemini Advanced web UIs. Subscription users are served via MCP and handoff workflows, never via web automation.
+- **Generic note-taking app.** Notes serve articles; Tiro is not a Notion replacement.
 - **In-app web browsing.** Tiro is downstream of save events, not a browser.
 - **Building yet another AI chat UI.** Tiro is a reading OS that *uses* AI; it is not a chatbot.
-- **Default-on telemetry.** Never.
+- **Default-on telemetry.** Never. Telemetry is always opt-in with clear consent UI.
+
+**Deferred — revisit at scale:**
+- **Social posture (sharing, reading groups, public reading lists, follow graphs, comments, public profiles).** The current product is "your reading is your own" — this scales better and is easier to defend. **However**, if Tiro reaches meaningful user scale (suggested triggers: ≥10k MAU, or repeated explicit user requests for cross-user discovery and sharing), this decision should be revisited. The endgame possibility worth preserving: users opt-in to share their learnings, VIP authors, highlight collections, and digest archives as a follow-able feed. Architecting Phase 7b around encrypted per-user blobs keeps this option open without committing to it; designing it out (e.g., by adopting a hard "no user-to-user data flow ever" stance) would foreclose it.
+- **Team / multi-user accounts.** Single-user is the design center through Phase 7b. Team libraries are a possible 1.x track conditional on personal sync being excellent and on demand actually existing among reached users.
+- **Cross-user discovery / recommendation.** Same trigger as social posture. If Tiro ever exposes "what other users with similar libraries are saving," it should be opt-in, anonymized, and live entirely in the Cloud tier (BYO sync users opt out by virtue of not having a Tiro-operated server seeing their data).
 
 ## Open Strategic Questions
 
 These need product decisions before the relevant phase begins. Listed here so they don't get lost.
 
-1. **Pricing for Tiro Cloud.** Flat monthly with AI bundle, or storage-tier + metered AI? This shapes Phase 7 architecture (especially the AI quota system).
+1. **Pricing for Tiro Cloud (single tier vs multi-tier).** The model is set: "Tiro Supporter" pattern, hosted sync + hosted agent runtime + managed AI baseline, BYO-key override always available. Open: single price point, or annual discount only, or storage/AI tiers? Recommendation: start with a single tier — "Tiro Supporter, $X/mo with $X-2/mo annual" — and only add tiers when usage patterns demand it.
 2. **Release-hosting decision.** GitHub Releases is the obvious default for Phase 5, but auto-update at scale eventually wants a CDN. Decide before Phase 5 ships.
-3. **Sync backend choice.** Own infra vs Cloudflare R2 vs S3 vs Supabase. Each has different cost/lock-in/encryption-handling profiles.
-4. **Mobile native app trigger.** PWA is the plan; the threshold for committing to native iOS/Android is unclear (likely "when users ask for features the PWA cannot deliver" — push notifications? widget? background audio?).
-5. **License for paid features.** Tiro is MIT today. Cloud features may want AGPL or a dual-license to discourage hosted-clone competitors.
-6. **MCP-vs-native-tool calling** as the canonical tool surface. MCP is more portable; native is lower-latency. Phase 6 should standardize.
+3. **Tiro Cloud backend infrastructure choice.** For Phase 7b: own VPS infra vs. managed serverless (Fly.io, Railway) vs. managed K8s vs. fully serverless (Cloudflare Workers + R2). Each has different cost/lock-in/encryption-handling profiles. Phase 7a is unaffected — BYO sync works against any S3-compatible.
+4. **Mobile native app trigger.** PWA is the plan through Phase 7b; the threshold for committing to native iOS/Android is unclear. Likely trigger: "when users ask for features the PWA cannot deliver" — reliable background audio, lock-screen audio controls, push notifications, widgets, share-sheet integration.
+5. **License strategy.** Tiro Local + Phase 7a (BYO sync) stay MIT — they are the open product. Phase 7b (Tiro Cloud server) may want AGPL or a dual-license to discourage hosted-clone competitors. Decide before Phase 7b code is published.
+6. **MCP-vs-native-tool calling** as the canonical tool surface for the agent runtime. MCP is more portable; native is lower-latency. Phase 6 should standardize on one and clearly support the other.
 7. **Plugin sandboxing approach.** Process isolation? WASM? Trust-the-user-with-warnings? Phase 6 ships without a sandbox; the answer to this question determines when sandboxing becomes mandatory.
+8. **Social posture revisit trigger.** Concrete numbers for "at scale": ≥10k MAU? Repeated explicit demand pattern in support? An external acquisition rationale? Worth setting an actual number now so we don't argue about it later. Recommendation: 10k MAU **or** 100 distinct user requests for cross-user sharing, whichever comes first.
+9. **Obsidian compatibility ceiling.** Phase 2 ships read-friendly file layout for Obsidian users. Open: do we ever ship bidirectional sync (file-watcher reconciling external edits)? This is its own engineering project — defer the decision until users are actually living with the Obsidian-vault-mode default.
+10. **Twitter / X connector resilience.** X actively breaks scrapers. Extension-side capture is the durable path (Phase 4). Open: do we maintain a server-side Nitter fallback, or accept that public-tweet save will sometimes break? Recommendation: ship extension-only, document the limitation, add Nitter fallback only if user demand justifies the maintenance.
 
 ---
 
