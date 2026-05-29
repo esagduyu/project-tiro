@@ -348,7 +348,11 @@ project-tiro/
 
 ## License
 
-MIT
+[GNU Affero General Public License v3.0 or later](LICENSE) (AGPL-3.0-or-later).
+
+Tiro is free software you can run, study, modify, and redistribute. If you modify Tiro and offer it as a network service to others, AGPL requires you to make your modified source available to those users. Running Tiro on your own laptop or home server for your own use carries no such obligation.
+
+> *Tiro was previously distributed under the MIT License. Existing contributions made before 2026-05-28 remain under their original MIT terms; subsequent contributions are AGPL-3.0-or-later.*
 
 ---
 
