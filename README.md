@@ -36,7 +36,7 @@ Named after [Cicero's freedman](https://en.wikipedia.org/wiki/Marcus_Tullius_Tir
 
 ## Quick Start
 
-**Prerequisites:** Python 3.11+, [uv](https://docs.astral.sh/uv/), [Anthropic API key](https://console.anthropic.com/), optionally [OpenAI API key](https://platform.openai.com/api-keys) for TTS
+**Prerequisites:** Python 3.11+, [uv](https://docs.astral.sh/uv/), [Anthropic API key](https://console.anthropic.com/), optionally [OpenAI API key](https://platform.openai.com/api-keys) for TTS:
 
 ```bash
 git clone https://github.com/esagduyu/project-tiro.git
